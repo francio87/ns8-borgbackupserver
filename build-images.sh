@@ -37,7 +37,7 @@ buildah add "${container}" imageroot /imageroot
 buildah add "${container}" ui/dist /ui
 # Setup the entrypoint, reserve one TCP port for the local web backend, and set a rootless container
 buildah config --entrypoint=/ \
-    --label="org.nethserver.authorizations=traefik@node:routeadm,node:fwadm" \
+    --label="org.nethserver.authorizations=traefik@node:routeadm node:fwadm" \
     --label="org.nethserver.tcp-ports-demand=1" \
     --label="org.nethserver.rootfull=0" \
     --label="org.nethserver.volumes=bbs-data" \
