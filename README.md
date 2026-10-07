@@ -2,7 +2,7 @@
 
 This module runs the upstream [Borg Backup Server](https://github.com/marcpope/borgbackupserver) image as a dedicated, rootless Podman container. BBS includes its own Apache web app, MariaDB, ClickHouse, SSH daemon, and scheduler; the module does not split or modify those services.
 
-The upstream image is pinned in `build-images.sh` to `v2.96.8`. Update the BBS server through a newer NS8 module image, not the BBS in-app server updater: that updater changes the container filesystem outside the pinned image and can apply database migrations that are not reversible.
+The upstream image is pinned in `build-images.sh` to `v2.98.5`. Update the BBS server through a newer NS8 module image, not the BBS in-app server updater: that updater changes the container filesystem outside the pinned image and can apply database migrations that are not reversible.
 
 ## Requirements
 
@@ -31,7 +31,7 @@ BBS generates its initial admin password on first startup and prints it to the c
 
 ## Data and backup
 
-All BBS persistent files live in the named Podman volume `bbs-data`, mounted at `/var/bbs`. This includes Borg repositories, configuration and `APP_KEY`, SSH host keys, and ClickHouse catalog data. The module's NS8 backup includes that volume and generates an additional consistent BBS server archive containing a MariaDB dump, application configuration, and SSH host keys. The live MariaDB files and temporary/cache directories are excluded from Restic; restore imports the SQL dump before applying the module configuration.
+All BBS persistent files live in the named Podman volume `bbs-data`, mounted at `/var/bbs`. This includes Borg repositories, configuration and `APP_KEY`, SSH host keys, and ClickHouse catalog data. The module's NS8 backup includes that volume and generates an additional BBS server archive containing a MariaDB dump, application configuration, and SSH host keys. The live MariaDB and ClickHouse files plus temporary/cache directories are excluded from Restic; ClickHouse catalogs are intentionally rebuilt from Borg repositories, and restore imports the SQL dump before applying the module configuration.
 
 Because the volume includes client Borg repositories, NS8 backups can be large and may duplicate data already protected elsewhere. Ensure the configured NS8 backup destination has enough capacity and retention appropriate for those repositories.
 
