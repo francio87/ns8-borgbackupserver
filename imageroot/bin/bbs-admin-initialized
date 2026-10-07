@@ -1,0 +1,39 @@
+#!/usr/bin/env python3
+
+import subprocess
+import sys
+
+
+def initialized(run=None):
+    if run is None:
+        run = subprocess.run
+    try:
+        result = run(
+            [
+                "podman",
+                "exec",
+                "bbs",
+                "mysql",
+                "bbs",
+                "-N",
+                "-e",
+                "SELECT COUNT(*) FROM settings WHERE `key`='server_host' AND `value`<>''",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=10,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if result.returncode != 0:
+        return None
+    try:
+        return int(result.stdout.strip()) > 0
+    except ValueError:
+        return None
+
+
+if __name__ == "__main__":
+    state = initialized()
+    sys.exit(2 if state is None else (0 if state else 1))

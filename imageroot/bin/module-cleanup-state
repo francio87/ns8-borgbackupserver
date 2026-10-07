@@ -1,0 +1,4 @@
+#!/bin/bash
+
+set -e
+rm -f "${AGENT_STATE_DIR:?}/bbs-backup.tar.gz"

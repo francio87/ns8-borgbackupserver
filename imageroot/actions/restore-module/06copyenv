@@ -1,0 +1,13 @@
+#!/usr/bin/env python3
+
+import json
+import sys
+
+import agent
+
+
+request = json.load(sys.stdin)
+environment = request.get("environment", {})
+for name in ("BBS_FQDN", "BBS_LETS_ENCRYPT", "BBS_SSH_PORT"):
+    if name in environment:
+        agent.set_env(name, str(environment[name]))

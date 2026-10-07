@@ -1,0 +1,24 @@
+#!/bin/bash
+
+set -euo pipefail
+exec 1>&2
+
+state_dir="${AGENT_STATE_DIR:?}"
+archive=""
+cleanup() {
+    if [[ -n "$archive" ]]; then
+        podman exec bbs rm -f "$archive" || true
+    fi
+}
+trap cleanup EXIT
+
+rm -f "$state_dir/bbs-backup.tar.gz"
+podman exec bbs mkdir -p /var/bbs/backups/ns8
+podman exec bbs /var/www/bbs/bin/bbs-backup /var/bbs/backups/ns8 --keep 1
+archive="$(podman exec bbs find /var/bbs/backups/ns8 -maxdepth 1 -type f -name 'bbs-backup-*.tar.gz' -print -quit)"
+if [[ -z "$archive" ]]; then
+    echo "BBS did not create its database backup archive" >&2
+    exit 1
+fi
+podman cp "bbs:$archive" "$state_dir/bbs-backup.tar.gz"
+chmod 600 "$state_dir/bbs-backup.tar.gz"

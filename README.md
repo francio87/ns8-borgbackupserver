@@ -1,100 +1,50 @@
-# ns8-kickstart
+# Borg Backup Server for NethServer 8
 
-This is a template module for [NethServer 8](https://github.com/NethServer/ns8-core).
-To start a new module from it:
+This module runs the upstream [Borg Backup Server](https://github.com/marcpope/borgbackupserver) image as a dedicated, rootless Podman container. BBS includes its own Apache web app, MariaDB, ClickHouse, SSH daemon, and scheduler; the module does not split or modify those services.
 
-1. Click on [Use this template](https://github.com/NethServer/ns8-kickstart/generate).
-   Name your repo with `ns8-` prefix (e.g. `ns8-mymodule`). 
-   Do not end your module name with a number, like ~~`ns8-baaad2`~~!
+The upstream image is pinned in `build-images.sh` to `v2.98.5`. Update the BBS server through a newer NS8 module image, not the BBS in-app server updater: that updater changes the container filesystem outside the pinned image and can apply database migrations that are not reversible.
 
-1. Clone the repository, enter the cloned directory and
-   [configure your GIT identity](https://git-scm.com/book/en/v2/Getting-Started-First-Time-Git-Setup#_your_identity)
+## Requirements
 
-1. Rename some references inside the repo:
-   ```
-   modulename=$(basename $(pwd) | sed 's/^ns8-//')
-   git mv imageroot/systemd/user/kickstart.service imageroot/systemd/user/${modulename}.service
-   git mv tests/kickstart.robot tests/${modulename}.robot
-   sed -i "s/kickstart/${modulename}/g" $(find .github/ .devcontainer/ * -type f)
-   git commit -a -m "Repository initialization"
-   ```
-
-1. Edit this `README.md` file, by replacing this section with your module
-   description
-
-1. Adjust `.github/workflows` to your needs. `clean-registry.yml` might
-   need the proper list of image names to work correctly. Unused workflows
-   can be disabled from the GitHub Actions interface.
-
-1. Commit and push your local changes
-
-## Install
-
-Instantiate the module with:
-
-    add-module ghcr.io/nethserver/kickstart:latest 1
-
-The output of the command will return the instance name.
-Output example:
-
-    {"module_id": "kickstart1", "image_name": "kickstart", "image_url": "ghcr.io/nethserver/kickstart:latest"}
+- At least 2 GB RAM; 4 GB or more is recommended by upstream.
+- A DNS name for the BBS web interface.
+- TCP 80 and 443 reachable by browsers and agents. If using Let's Encrypt, the FQDN must resolve publicly to this node and HTTP validation must succeed.
+- The configured Borg SSH TCP port reachable by backup clients. NS8 opens this port in the node firewall; router/NAT forwarding must be configured separately.
 
 ## Configure
 
-Let's assume that the kickstart instance is named `kickstart1`.
+In the module Settings page, set the FQDN, choose whether NS8 Traefik should request a Let's Encrypt certificate, and select the external SSH port. The default SSH port is `2222`; ports below `1024` are not accepted for this rootless module. Before applying a changed port, the module checks whether it is listening on the node and whether it conflicts with the NS8-assigned web backend port.
 
-Launch `configure-module`, by setting the following parameters:
-- `<MODULE_PARAM1_NAME>`: <MODULE_PARAM1_DESCRIPTION>
-- `<MODULE_PARAM2_NAME>`: <MODULE_PARAM2_DESCRIPTION>
-- ...
+The Settings page can optionally set the BBS administrator password during the initial setup. After BBS initializes, the field is locked and password changes must be made in the BBS web interface. Leaving it empty preserves BBS's generated initial password behavior. The initial password is not returned by module configuration and is cleared from module state after BBS initialization.
 
-Example:
+For example, if the instance is `borgbackupserver1`:
 
-    api-cli run module/kickstart1/configure-module --data '{}'
+```bash
+api-cli run module/borgbackupserver1/configure-module --data '{"fqdn":"bbs.example.org","lets_encrypt":true,"ssh_port":2222}'
+```
 
-The above command will:
-- start and configure the kickstart instance
-- (describe configuration process)
-- ...
+The module configuration is authoritative. It sets BBS `APP_URL` and `server_host`, and passes the chosen SSH port both to the container's host-port mapping and BBS `SSH_PORT` setting. BBS receives the same SSH port advertised to agents. Restart existing agents after changing the port. A hostname change also requires updating the saved server URL in existing agent configurations; the server cannot rewrite those local client files.
 
-Send a test HTTP request to the kickstart backend service:
+With Let's Encrypt disabled, Traefik uses the node's default certificate. BBS agents verify HTTPS certificates, so unattended agents must trust that certificate; a publicly trusted certificate is recommended when clients cannot be configured with the node's certificate.
 
-    curl http://127.0.0.1/kickstart/
+If you leave the initial password field empty, BBS generates an administrator password on first startup and prints it to the container log. To read the log, run `runagent -m borgbackupserver1 podman logs bbs`.
 
-## Smarthost setting discovery
+## Data and backup
 
-Some configuration settings, like the smarthost setup, are not part of the
-`configure-module` action input: they are discovered by looking at some
-Redis keys.  To ensure the module is always up-to-date with the
-centralized [smarthost
-setup](https://nethserver.github.io/ns8-core/core/smarthost/) every time
-kickstart starts, the command `bin/discover-smarthost` runs and refreshes
-the `state/smarthost.env` file with fresh values from Redis.
+All BBS persistent files live in the named Podman volume `bbs-data`, mounted at `/var/bbs`. This includes Borg repositories, configuration and `APP_KEY`, SSH host keys, and ClickHouse catalog data. The module's NS8 backup includes that volume and generates an additional BBS server archive containing a MariaDB dump, application configuration, and SSH host keys. The live MariaDB and ClickHouse files plus temporary/cache directories are excluded from Restic; ClickHouse catalogs are intentionally rebuilt from Borg repositories, and restore imports the SQL dump before applying the module configuration.
 
-Furthermore if smarthost setup is changed when kickstart is already
-running, the event handler `events/smarthost-changed/10reload_services`
-restarts the main module service.
+Because the volume includes client Borg repositories, NS8 backups can be large and may duplicate data already protected elsewhere. Ensure the configured NS8 backup destination has enough capacity and retention appropriate for those repositories.
 
-See also the `systemd/user/kickstart.service` file.
+## Install
 
-This setting discovery is just an example to understand how the module is
-expected to work: it can be rewritten or discarded completely.
+Build and publish the module image, then instantiate it on an NS8 node:
 
-## Uninstall
+```bash
+add-module ghcr.io/francio87/borgbackupserver:0.0.1 1
+```
 
-To uninstall the instance:
+The command returns the module ID. Configure it in the NS8 UI or with `configure-module` as shown above.
 
-    remove-module --no-preserve kickstart1
+## Tests
 
-## Running tests locally
-
-This module uses the NS8 standard testing infrastructure. For instructions on how to run the test suite locally, refer to the [Running tests locally](https://github.com/NethServer/ns8-github-actions/blob/v1/README.md#running-tests-locally) section of the ns8-github-actions README.
-
-## UI translation
-
-Translated with [Weblate](https://hosted.weblate.org/projects/ns8/).
-
-To setup the translation process:
-
-- add [GitHub Weblate app](https://docs.weblate.org/en/latest/admin/code-hosting.html#code-hosting-github-notifications) to your repository
-- add your repository to [hosted.weblate.org](https://hosted.weblate.org) or ask a NethServer developer to add it to ns8 Weblate project
+The Robot Framework tests use the NS8 standard testing infrastructure. See the [ns8-github-actions testing guide](https://github.com/NethServer/ns8-github-actions/blob/v1/README.md#running-tests-locally).

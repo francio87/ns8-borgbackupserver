@@ -1,19 +1,18 @@
 {
-  "name": "kickstart",
+  "name": "Borg Backup Server",
   "description": {
-    "en": "My kickstart module"
+    "en": "Manage BorgBackup clients, repositories, schedules, and restores."
   },
   "categories": [],
   "authors": [
     {
-      "name": "Name Surname",
-      "email": "author@yourmail.org"
+      "name": "Borg Backup Server NS8 module contributors"
     }
   ],
   "docs": {
-    "documentation_url": "https://docs.kickstart.com/",
-    "bug_url": "https://github.com/NethServer/dev",
-    "code_url": "https://github.com/author/ns8-kickstart"
+    "documentation_url": "https://github.com/marcpope/borgbackupserver/wiki/Docker-Installation",
+    "bug_url": "https://github.com/francio87/ns8-borgbackupserver/issues",
+    "code_url": "https://github.com/francio87/ns8-borgbackupserver"
   },
-  "source": "ghcr.io/nethserver/kickstart"
+  "source": "ghcr.io/francio87/borgbackupserver"
 }

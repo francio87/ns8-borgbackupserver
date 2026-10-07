@@ -6,31 +6,122 @@
 #
 
 import json
-import sys
-import agent
-import agent.tasks
 import os
+import subprocess
+import sys
+
+import agent
+
+
+def validation_error(field, error, value):
+    agent.set_status("validation-failed")
+    json.dump(
+        [{"field": field, "parameter": field, "value": value, "error": error}],
+        fp=sys.stdout,
+    )
+    sys.exit(3)
+
+
+def admin_password_initialized():
+    try:
+        result = subprocess.run(
+            ["bbs-admin-initialized"], check=False, timeout=15
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if result.returncode == 0:
+        return True
+    if result.returncode == 1:
+        return False
+    return None
+
+
+def write_admin_password(password):
+    state_dir = os.environ["AGENT_STATE_DIR"]
+    os.makedirs(state_dir, mode=0o700, exist_ok=True)
+    password_file = os.path.join(state_dir, "passwords.env")
+    fd = os.open(password_file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    os.fchmod(fd, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as stream:
+        if password:
+            stream.write(f"ADMIN_PASS={password}\n")
+
+
+def clear_admin_password():
+    password_file = os.path.join(os.environ["AGENT_STATE_DIR"], "passwords.env")
+    try:
+        os.unlink(password_file)
+    except FileNotFoundError:
+        pass
+
 
 request = json.load(sys.stdin)
+fqdn = request["fqdn"].strip().lower()
+ssh_port = request["ssh_port"]
+admin_password = request.get("admin_password", "")
+current_port = int(os.environ.get("BBS_SSH_PORT", "0") or 0)
+web_port = int(os.environ["TCP_PORT"])
+password_initialized = admin_password_initialized()
+password_locked = password_initialized is True or bool(os.environ.get("BBS_FQDN"))
 
-# TODO: do something with the request payload. For example configure a
-# custom route in our web router. Here the path is hardcoded as
-# 'kickstart'.
+if admin_password:
+    if password_locked:
+        validation_error(
+            "admin_password", "admin_password_already_initialized", None
+        )
+    if (
+        not isinstance(admin_password, str)
+        or not 8 <= len(admin_password) <= 128
+        or any(char in admin_password for char in "\r\n\x00")
+    ):
+        validation_error("admin_password", "invalid_admin_password", None)
+elif password_initialized is True:
+    # Remove any stale bootstrap credential after initialization is confirmed.
+    clear_admin_password()
 
-# Configure Traefik to route "/kickstart" path requests to the kickstart
-# service. Since the "instance" attribute starts with MODULE_ID, the route
-# will be removed automatically with the module.
-response = agent.tasks.run(
-    agent_id=agent.resolve_agent_id('traefik@node'),
-    action='set-route',
-    data={
-        'instance': os.environ['MODULE_ID'],
-        'url':  'http://127.0.0.1:' + os.environ["TCP_PORT"],
-        'http2https': False,
-        'lets_encrypt': False,
-        'path': '/kickstart',
-    },
+# The NS8 checker sees listening sockets. Check the allocated web port
+# explicitly too, because it may not be listening until the service starts.
+port_is_ours = False
+if ssh_port == current_port:
+    current_mapping = subprocess.run(
+        ["podman", "port", "bbs", "22/tcp"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    port_is_ours = current_mapping.returncode == 0 and any(
+        line.rstrip().endswith(f":{ssh_port}")
+        for line in current_mapping.stdout.splitlines()
+    )
+if ssh_port == web_port or (
+    not port_is_ours and agent.tcp_port_in_use(ssh_port)
+):
+    validation_error("ssh_port", "port_in_use", ssh_port)
+
+agent.set_route(
+    {
+        "instance": os.environ["MODULE_ID"],
+        "url": f"http://127.0.0.1:{web_port}",
+        "host": fqdn,
+        "lets_encrypt": request["lets_encrypt"],
+        "http2https": True,
+    }
+)
+agent.assert_exp(
+    agent.add_public_service(
+        os.environ["MODULE_ID"], [f"{ssh_port}/tcp"], replace_ports=True
+    ),
+    "Cannot update the NS8 firewall rule for the BBS SSH port",
 )
 
-# Check if traefik configuration has been successfull
-agent.assert_exp(response['exit_code'] == 0)
+if admin_password:
+    write_admin_password(admin_password)
+
+agent.mset_env(
+    {
+        "BBS_FQDN": fqdn,
+        "BBS_LETS_ENCRYPT": str(request["lets_encrypt"]).lower(),
+        "BBS_SSH_PORT": str(ssh_port),
+    }
+)
+json.dump({}, fp=sys.stdout)
