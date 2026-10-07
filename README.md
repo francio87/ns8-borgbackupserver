@@ -15,6 +15,8 @@ The upstream image is pinned in `build-images.sh` to `v2.96.8`. Update the BBS s
 
 In the module Settings page, set the FQDN, choose whether NS8 Traefik should request a Let's Encrypt certificate, and select the external SSH port. The default SSH port is `2222`; ports below `1024` are not accepted for this rootless module. Before applying a changed port, the module checks whether it is listening on the node and whether it conflicts with the NS8-assigned web backend port.
 
+The Settings page can optionally set the BBS administrator password during the initial setup. After BBS initializes, the field is locked and password changes must be made in the BBS web interface. Leaving it empty preserves BBS's generated initial password behavior. The initial password is not returned by module configuration and is cleared from module state after BBS initialization.
+
 For example, if the instance is `borgbackupserver1`:
 
 ```bash

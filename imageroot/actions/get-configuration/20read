@@ -7,12 +7,27 @@
 
 import json
 import os
+import subprocess
 import sys
+
+try:
+    bootstrap_state = subprocess.run(
+        ["bbs-admin-initialized"],
+        capture_output=True,
+        check=False,
+        timeout=15,
+    )
+except (OSError, subprocess.TimeoutExpired):
+    bootstrap_state = None
 
 config = {
     "fqdn": os.environ.get("BBS_FQDN", ""),
     "lets_encrypt": os.environ.get("BBS_LETS_ENCRYPT", "false").lower() == "true",
     "ssh_port": int(os.environ.get("BBS_SSH_PORT", "2222") or 2222),
+    "admin_password_initialized": (
+        bootstrap_state is not None and bootstrap_state.returncode == 0
+    )
+    or bool(os.environ.get("BBS_FQDN")),
 }
 
 json.dump(config, fp=sys.stdout)

@@ -20,6 +20,9 @@
             "type": "integer",
             "minimum": 1024,
             "maximum": 65535
+        },
+        "admin_password": {
+            "type": "string"
         }
     }
 }

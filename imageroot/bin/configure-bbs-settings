@@ -46,3 +46,20 @@ subprocess.run(
     ],
     check=True,
 )
+
+try:
+    password_initialized = (
+        subprocess.run(
+            ["bbs-admin-initialized"], check=False, timeout=15
+        ).returncode
+        == 0
+    )
+except (OSError, subprocess.TimeoutExpired):
+    password_initialized = False
+
+if password_initialized:
+    password_file = os.path.join(os.environ["AGENT_STATE_DIR"], "passwords.env")
+    try:
+        os.unlink(password_file)
+    except FileNotFoundError:
+        pass

@@ -61,6 +61,24 @@
               :invalid-message="error.ssh_port"
               ref="ssh_port"
             />
+            <NsPasswordInput
+              :label="$t('settings.admin_password')"
+              v-model="adminPassword"
+              :helper-text="
+                $t(
+                  adminPasswordInitialized
+                    ? 'settings.admin_password_initialized'
+                    : 'settings.admin_password_help'
+                )
+              "
+              :disabled="
+                loading.getConfiguration ||
+                loading.configureModule ||
+                adminPasswordInitialized
+              "
+              :invalid-message="error.admin_password"
+              ref="admin_password"
+            />
             <cv-row v-if="error.configureModule">
               <cv-column>
                 <NsInlineNotification
@@ -117,6 +135,8 @@ export default {
       fqdn: "",
       letsEncrypt: false,
       sshPort: "2222",
+      adminPassword: "",
+      adminPasswordInitialized: false,
       loading: {
         getConfiguration: false,
         configureModule: false,
@@ -126,6 +146,7 @@ export default {
         configureModule: "",
         fqdn: "",
         ssh_port: "",
+        admin_password: "",
       },
     };
   },
@@ -180,7 +201,7 @@ export default {
       const err = res[0];
 
       if (err) {
-        console.error(`error creating task ${taskAction}`, err);
+        console.error(`error creating task ${taskAction}`);
         this.error.getConfiguration = this.getErrorMessage(err);
         this.loading.getConfiguration = false;
         return;
@@ -198,6 +219,8 @@ export default {
       this.fqdn = config.fqdn || "";
       this.letsEncrypt = config.lets_encrypt;
       this.sshPort = String(config.ssh_port || 2222);
+      this.adminPasswordInitialized = config.admin_password_initialized === true;
+      this.adminPassword = "";
       this.focusElement("fqdn");
     },
     validateConfigureModule() {
@@ -219,6 +242,20 @@ export default {
         }
         isValidationOk = false;
       }
+
+      if (
+        !this.adminPasswordInitialized &&
+        this.adminPassword &&
+        (this.adminPassword.length < 8 ||
+          this.adminPassword.length > 128 ||
+          /[\r\n\u0000]/.test(this.adminPassword))
+      ) {
+        this.error.admin_password = this.$t("settings.invalid_admin_password");
+        if (isValidationOk) {
+          this.focusElement("admin_password");
+        }
+        isValidationOk = false;
+      }
       return isValidationOk;
     },
     configureModuleValidationFailed(validationErrors) {
@@ -231,6 +268,13 @@ export default {
         if (field !== "(root)") {
           // set i18n error message
           this.error[field] = this.$t("settings." + validationError.error);
+          if (
+            field === "admin_password" &&
+            validationError.error === "admin_password_already_initialized"
+          ) {
+            this.adminPasswordInitialized = true;
+            this.adminPassword = "";
+          }
 
           if (!focusAlreadySet) {
             this.focusElement(field);
@@ -267,14 +311,19 @@ export default {
         this.configureModuleCompleted
       );
 
+      const data = {
+        fqdn: this.fqdn.trim().toLowerCase(),
+        lets_encrypt: this.letsEncrypt,
+        ssh_port: Number(this.sshPort),
+      };
+      if (!this.adminPasswordInitialized && this.adminPassword) {
+        data.admin_password = this.adminPassword;
+      }
+
       const res = await to(
         this.createModuleTaskForApp(this.instanceName, {
           action: taskAction,
-          data: {
-            fqdn: this.fqdn.trim().toLowerCase(),
-            lets_encrypt: this.letsEncrypt,
-            ssh_port: Number(this.sshPort),
-          },
+          data,
           extra: {
             title: this.$t("settings.configure_instance", {
               instance: this.instanceName,
@@ -286,17 +335,22 @@ export default {
       );
       const err = res[0];
 
+      if (!err) {
+        this.adminPassword = "";
+      }
+
       if (err) {
-        console.error(`error creating task ${taskAction}`, err);
+        console.error(`error creating task ${taskAction}`);
         this.error.configureModule = this.getErrorMessage(err);
         this.loading.configureModule = false;
         return;
       }
     },
-    configureModuleAborted(taskResult, taskContext) {
-      console.error(`${taskContext.action} aborted`, taskResult);
+    configureModuleAborted(...args) {
+      console.error(`${args[1].action} aborted`);
       this.error.configureModule = this.$t("error.generic_error");
       this.loading.configureModule = false;
+      this.getConfiguration();
     },
     configureModuleCompleted() {
       this.loading.configureModule = false;

@@ -22,11 +22,62 @@ def validation_error(field, error, value):
     sys.exit(3)
 
 
+def admin_password_initialized():
+    try:
+        result = subprocess.run(
+            ["bbs-admin-initialized"], check=False, timeout=15
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if result.returncode == 0:
+        return True
+    if result.returncode == 1:
+        return False
+    return None
+
+
+def write_admin_password(password):
+    state_dir = os.environ["AGENT_STATE_DIR"]
+    os.makedirs(state_dir, mode=0o700, exist_ok=True)
+    password_file = os.path.join(state_dir, "passwords.env")
+    fd = os.open(password_file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    os.fchmod(fd, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as stream:
+        if password:
+            stream.write(f"ADMIN_PASS={password}\n")
+
+
+def clear_admin_password():
+    password_file = os.path.join(os.environ["AGENT_STATE_DIR"], "passwords.env")
+    try:
+        os.unlink(password_file)
+    except FileNotFoundError:
+        pass
+
+
 request = json.load(sys.stdin)
 fqdn = request["fqdn"].strip().lower()
 ssh_port = request["ssh_port"]
+admin_password = request.get("admin_password", "")
 current_port = int(os.environ.get("BBS_SSH_PORT", "0") or 0)
 web_port = int(os.environ["TCP_PORT"])
+password_initialized = admin_password_initialized()
+password_locked = password_initialized is True or bool(os.environ.get("BBS_FQDN"))
+
+if admin_password:
+    if password_locked:
+        validation_error(
+            "admin_password", "admin_password_already_initialized", None
+        )
+    if (
+        not isinstance(admin_password, str)
+        or not 8 <= len(admin_password) <= 128
+        or any(char in admin_password for char in "\r\n\x00")
+    ):
+        validation_error("admin_password", "invalid_admin_password", None)
+elif password_initialized is True:
+    # Remove any stale bootstrap credential after initialization is confirmed.
+    clear_admin_password()
 
 # The NS8 checker sees listening sockets. Check the allocated web port
 # explicitly too, because it may not be listening until the service starts.
@@ -62,6 +113,9 @@ agent.assert_exp(
     ),
     "Cannot update the NS8 firewall rule for the BBS SSH port",
 )
+
+if admin_password:
+    write_admin_password(admin_password)
 
 agent.mset_env(
     {

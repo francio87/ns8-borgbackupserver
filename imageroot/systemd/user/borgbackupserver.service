@@ -11,6 +11,8 @@ EnvironmentFile=%E/state/environment
 WorkingDirectory=%E/state
 Restart=always
 ExecStartPre=/bin/rm -f %t/bbs.pid %t/bbs.ctr-id
+ExecStartPre=/usr/bin/touch %S/state/passwords.env
+ExecStartPre=/usr/bin/chmod 600 %S/state/passwords.env
 ExecStartPre=-/usr/bin/podman rm --ignore --force bbs
 ExecStart=/usr/bin/podman run \
     --detach \
@@ -20,6 +22,7 @@ ExecStart=/usr/bin/podman run \
     --replace --name=bbs \
     --publish=127.0.0.1:${TCP_PORT}:80/tcp \
     --publish=${BBS_SSH_PORT}:22/tcp \
+    --env-file=%S/state/passwords.env \
     --volume=bbs-data:/var/bbs:Z \
     --env=APP_URL=https://${BBS_FQDN} \
     --env=SSH_PORT=${BBS_SSH_PORT} \

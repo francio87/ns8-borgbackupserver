@@ -4,10 +4,11 @@
     "$id": "http://schema.nethserver.org/borgbackupserver/get-configuration-output.json",
     "description": "Borg Backup Server configuration",
     "type": "object",
-    "required": ["fqdn", "lets_encrypt", "ssh_port"],
+    "required": ["fqdn", "lets_encrypt", "ssh_port", "admin_password_initialized"],
     "properties": {
         "fqdn": {"type": "string"},
         "lets_encrypt": {"type": "boolean"},
-        "ssh_port": {"type": "integer", "minimum": 1024, "maximum": 65535}
+        "ssh_port": {"type": "integer", "minimum": 1024, "maximum": 65535},
+        "admin_password_initialized": {"type": "boolean"}
     }
 }
