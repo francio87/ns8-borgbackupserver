@@ -248,7 +248,8 @@ export default {
         this.adminPassword &&
         (this.adminPassword.length < 8 ||
           this.adminPassword.length > 128 ||
-          /[\r\n\u0000]/.test(this.adminPassword))
+          /[\r\n]/.test(this.adminPassword) ||
+          this.adminPassword.includes("\0"))
       ) {
         this.error.admin_password = this.$t("settings.invalid_admin_password");
         if (isValidationOk) {
