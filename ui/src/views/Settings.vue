@@ -61,9 +61,20 @@
               :invalid-message="error.ssh_port"
               ref="ssh_port"
             />
-            <NsPasswordInput
+            <p class="bx--form__helper-text">
+              {{ $t("settings.admin_password_notice") }}
+            </p>
+            <NsTextInput
               :label="$t('settings.admin_password')"
               v-model="adminPassword"
+              :type="adminPasswordInitialized ? 'text' : 'password'"
+              :placeholder="
+                adminPasswordInitialized
+                  ? $t('settings.admin_password_mask')
+                  : ''
+              "
+              :password-show-label="$t('settings.show_password')"
+              :password-hide-label="$t('settings.hide_password')"
               :helper-text="
                 $t(
                   adminPasswordInitialized

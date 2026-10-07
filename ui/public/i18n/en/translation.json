@@ -37,8 +37,12 @@
         "invalid_ssh_port": "Enter an unused TCP port from 1024 to 65535.",
         "port_in_use": "This TCP port is already in use on the node. Choose another port.",
         "admin_password": "Initial BBS administrator password",
+        "admin_password_notice": "Set a password here only during initial configuration. Change it later from inside BBS; NethServer does not store it and cannot reveal it.",
         "admin_password_help": "Optional. Set this only before BBS is initialized. Leave blank to let BBS generate a password; change it later from the BBS web interface.",
-        "admin_password_initialized": "BBS is already initialized. Change the administrator password from the BBS web interface.",
+        "admin_password_initialized": "BBS is initialized. Change the administrator password inside BBS; it cannot be retrieved here.",
+        "admin_password_mask": "************",
+        "show_password": "Show password",
+        "hide_password": "Hide password",
         "invalid_admin_password": "Use 8–128 characters on one line.",
         "admin_password_already_initialized": "BBS is already initialized. Change the administrator password from the BBS web interface."
     },
