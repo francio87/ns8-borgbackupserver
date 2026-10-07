@@ -24,7 +24,18 @@
         "title": "Settings",
         "configure_instance": "Configure {instance}",
         "save": "Save",
-        "test_field": "Test field"
+        "access_url": "BBS web interface:",
+        "fqdn": "Hostname (FQDN)",
+        "fqdn_help": "Changing this hostname also requires updating the server URL in existing BBS agents.",
+        "lets_encrypt": "Request a Let's Encrypt certificate",
+        "enabled": "Enabled",
+        "disabled": "Disabled",
+        "tls_help": "When disabled, NethServer uses its default certificate. BBS agents must trust that certificate; use a trusted certificate for unattended clients.",
+        "ssh_port": "Borg SSH port",
+        "ssh_port_help": "This TCP port is opened in the NethServer firewall and advertised to agents. Restart existing agents after changing it. Configure any router or NAT separately.",
+        "invalid_fqdn": "Enter a valid fully qualified domain name, such as bbs.example.com.",
+        "invalid_ssh_port": "Enter an unused TCP port from 1024 to 65535.",
+        "port_in_use": "This TCP port is already in use on the node. Choose another port."
     },
     "about": {
         "title": "About"

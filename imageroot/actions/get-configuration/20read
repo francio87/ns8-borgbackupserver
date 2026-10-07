@@ -6,9 +6,13 @@
 #
 
 import json
+import os
 import sys
-import agent
 
-config = {}
+config = {
+    "fqdn": os.environ.get("BBS_FQDN", ""),
+    "lets_encrypt": os.environ.get("BBS_LETS_ENCRYPT", "false").lower() == "true",
+    "ssh_port": int(os.environ.get("BBS_SSH_PORT", "2222") or 2222),
+}
 
 json.dump(config, fp=sys.stdout)

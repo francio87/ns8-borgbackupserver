@@ -1,0 +1,17 @@
+#!/usr/bin/env python3
+
+import os
+
+import agent
+
+
+response = agent.tasks.run(
+    "module/" + os.environ["MODULE_ID"],
+    action="configure-module",
+    data={
+        "fqdn": os.environ["BBS_FQDN"],
+        "lets_encrypt": os.environ["BBS_LETS_ENCRYPT"].lower() == "true",
+        "ssh_port": int(os.environ["BBS_SSH_PORT"]),
+    },
+)
+agent.assert_exp(response["exit_code"] == 0)

@@ -22,16 +22,45 @@
     <cv-row>
       <cv-column>
         <cv-tile light>
+          <cv-row v-if="fqdn">
+            <cv-column>
+              <p>
+                {{ $t("settings.access_url") }}
+                <cv-link :href="bbsUrl" target="_blank">{{ bbsUrl }}</cv-link>
+              </p>
+            </cv-column>
+          </cv-row>
           <cv-form @submit.prevent="configureModule">
-            <!-- TODO remove test field and code configuration fields -->
-            <cv-text-input
-              :label="$t('settings.test_field')"
-              v-model="testField"
-              :placeholder="$t('settings.test_field')"
+            <NsTextInput
+              :label="$t('settings.fqdn')"
+              v-model="fqdn"
+              placeholder="bbs.example.com"
+              :helper-text="$t('settings.fqdn_help')"
               :disabled="loading.getConfiguration || loading.configureModule"
-              :invalid-message="error.testField"
-              ref="testField"
-            ></cv-text-input>
+              :invalid-message="error.fqdn"
+              ref="fqdn"
+            />
+            <NsToggle
+              v-model="letsEncrypt"
+              :label="$t('settings.lets_encrypt')"
+              value="lets-encrypt"
+              :disabled="loading.getConfiguration || loading.configureModule"
+            >
+              <template slot="text-left">{{ $t("settings.disabled") }}</template>
+              <template slot="text-right">{{ $t("settings.enabled") }}</template>
+              <template slot="tooltip">{{ $t("settings.tls_help") }}</template>
+            </NsToggle>
+            <NsTextInput
+              :label="$t('settings.ssh_port')"
+              v-model="sshPort"
+              type="number"
+              min="1024"
+              max="65535"
+              :helper-text="$t('settings.ssh_port_help')"
+              :disabled="loading.getConfiguration || loading.configureModule"
+              :invalid-message="error.ssh_port"
+              ref="ssh_port"
+            />
             <cv-row v-if="error.configureModule">
               <cv-column>
                 <NsInlineNotification
@@ -85,7 +114,9 @@ export default {
         page: "settings",
       },
       urlCheckInterval: null,
-      testField: "", // TODO remove
+      fqdn: "",
+      letsEncrypt: false,
+      sshPort: "2222",
       loading: {
         getConfiguration: false,
         configureModule: false,
@@ -93,13 +124,16 @@ export default {
       error: {
         getConfiguration: "",
         configureModule: "",
-        testField: "", // TODO remove
-        // TODO add all validation error fields
+        fqdn: "",
+        ssh_port: "",
       },
     };
   },
   computed: {
     ...mapState(["instanceName", "core", "appName"]),
+    bbsUrl() {
+      return this.fqdn ? "https://" + this.fqdn : "";
+    },
   },
   beforeRouteEnter(to, from, next) {
     next((vm) => {
@@ -161,28 +195,29 @@ export default {
       this.loading.getConfiguration = false;
       const config = taskResult.output;
 
-      // TODO set configuration fields
-      // ...
-
-      // TODO remove
-      console.log("config", config);
-
-      // TODO focus first configuration field
-      this.focusElement("testField");
+      this.fqdn = config.fqdn || "";
+      this.letsEncrypt = config.lets_encrypt;
+      this.sshPort = String(config.ssh_port || 2222);
+      this.focusElement("fqdn");
     },
     validateConfigureModule() {
       this.clearErrors(this);
       let isValidationOk = true;
 
-      // TODO remove testField and validate configuration fields
-      if (!this.testField) {
-        // test field cannot be empty
-        this.error.testField = this.$t("common.required");
+      const fqdnPattern = /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)(?:\.(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?))+$/i;
+      if (!fqdnPattern.test(this.fqdn.trim())) {
+        this.error.fqdn = this.$t("settings.invalid_fqdn");
+        this.focusElement("fqdn");
+        isValidationOk = false;
+      }
 
+      const port = Number(this.sshPort);
+      if (!Number.isInteger(port) || port < 1024 || port > 65535) {
+        this.error.ssh_port = this.$t("settings.invalid_ssh_port");
         if (isValidationOk) {
-          this.focusElement("testField");
-          isValidationOk = false;
+          this.focusElement("ssh_port");
         }
+        isValidationOk = false;
       }
       return isValidationOk;
     },
@@ -236,7 +271,9 @@ export default {
         this.createModuleTaskForApp(this.instanceName, {
           action: taskAction,
           data: {
-            // TODO configuration fields
+            fqdn: this.fqdn.trim().toLowerCase(),
+            lets_encrypt: this.letsEncrypt,
+            ssh_port: Number(this.sshPort),
           },
           extra: {
             title: this.$t("settings.configure_instance", {

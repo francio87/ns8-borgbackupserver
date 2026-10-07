@@ -1,8 +1,13 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "title": "get-configuration output",
-    "$id": "http://schema.nethserver.org/kickstart/get-configuration-output.json",
-    "description": "Get kickstart configuration",
-    "examples": [],
-    "type": "object"
+    "$id": "http://schema.nethserver.org/borgbackupserver/get-configuration-output.json",
+    "description": "Borg Backup Server configuration",
+    "type": "object",
+    "required": ["fqdn", "lets_encrypt", "ssh_port"],
+    "properties": {
+        "fqdn": {"type": "string"},
+        "lets_encrypt": {"type": "boolean"},
+        "ssh_port": {"type": "integer", "minimum": 1024, "maximum": 65535}
+    }
 }

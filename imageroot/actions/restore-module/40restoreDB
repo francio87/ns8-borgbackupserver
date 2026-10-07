@@ -1,0 +1,15 @@
+#!/bin/bash
+
+set -euo pipefail
+exec 1>&2
+
+backup="${AGENT_STATE_DIR:?}/bbs-backup.tar.gz"
+if [[ ! -s "$backup" ]]; then
+    echo "Missing BBS database backup in restored module state" >&2
+    exit 1
+fi
+
+systemctl --user start borgbackupserver.service
+tar -tzf "$backup" | grep -E '(^|/)dump\.sql$' >/dev/null
+tar -xOzf "$backup" ./dump.sql | podman exec -i bbs mysql bbs
+rm -f "$backup"

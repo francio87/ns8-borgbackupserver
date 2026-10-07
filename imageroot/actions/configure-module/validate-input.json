@@ -1,8 +1,25 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "title": "configure-module input",
-    "$id": "http://schema.nethserver.org/kickstart/configure-module-input.json",
-    "description": "Configure kickstart",
-    "examples": [],
-    "type": "object"
+    "$id": "http://schema.nethserver.org/borgbackupserver/configure-module-input.json",
+    "description": "Configure Borg Backup Server",
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["fqdn", "lets_encrypt", "ssh_port"],
+    "properties": {
+        "fqdn": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 253,
+            "pattern": "^(?=.{1,253}$)(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)(?:\\.(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?))+$"
+        },
+        "lets_encrypt": {
+            "type": "boolean"
+        },
+        "ssh_port": {
+            "type": "integer",
+            "minimum": 1024,
+            "maximum": 65535
+        }
+    }
 }
