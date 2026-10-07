@@ -14,5 +14,5 @@
     "bug_url": "https://github.com/francio87/ns8-borgbackupserver/issues",
     "code_url": "https://github.com/francio87/ns8-borgbackupserver"
   },
-  "source": "ghcr.io/nethserver/borgbackupserver"
+  "source": "ghcr.io/francio87/borgbackupserver"
 }

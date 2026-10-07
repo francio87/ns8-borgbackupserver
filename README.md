@@ -40,7 +40,7 @@ Because the volume includes client Borg repositories, NS8 backups can be large a
 Build and publish the module image, then instantiate it on an NS8 node:
 
 ```bash
-add-module ghcr.io/nethserver/borgbackupserver:latest 1
+add-module ghcr.io/francio87/borgbackupserver:0.0.1 1
 ```
 
 The command returns the module ID. Configure it in the NS8 UI or with `configure-module` as shown above.
