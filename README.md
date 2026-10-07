@@ -27,7 +27,7 @@ The module configuration is authoritative. It sets BBS `APP_URL` and `server_hos
 
 With Let's Encrypt disabled, Traefik uses the node's default certificate. BBS agents verify HTTPS certificates, so unattended agents must trust that certificate; a publicly trusted certificate is recommended when clients cannot be configured with the node's certificate.
 
-BBS generates its initial admin password on first startup and prints it to the container log. To read the log, run `runagent -m borgbackupserver1 podman logs bbs`.
+If you leave the initial password field empty, BBS generates an administrator password on first startup and prints it to the container log. To read the log, run `runagent -m borgbackupserver1 podman logs bbs`.
 
 ## Data and backup
 
