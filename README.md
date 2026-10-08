@@ -17,6 +17,14 @@ In the module Settings page, set the FQDN, choose whether NS8 Traefik should req
 
 The Settings page can optionally set the BBS administrator password during the initial setup. After BBS initializes, the field is locked and password changes must be made in the BBS web interface. Leaving it empty preserves BBS's generated initial password behavior. The initial password is not returned by module configuration and is cleared from module state after BBS initialization.
 
+If the password is lost, reset it from an interactive shell on the NS8 node with:
+
+```bash
+runagent -m borgbackupserver1 bbs-reset-admin-password
+```
+
+The command lists BBS administrator accounts, prompts for the account ID and new password, and updates the password hash in the BBS database. It also invalidates outstanding password-recovery tokens. It does not change the account's authentication provider or disable two-factor authentication; local password login must be enabled for the new password to work.
+
 For example, if the instance is `borgbackupserver1`:
 
 ```bash
