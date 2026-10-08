@@ -93,13 +93,16 @@
                 ref="admin_password"
               />
             </template>
-            <cv-accordion v-if="adminPasswordInitialized">
+            <cv-accordion
+              v-if="adminPasswordInitialized"
+              class="settings-advanced"
+            >
               <cv-accordion-item>
                 <template slot="title">{{
                   $t("settings.advanced_options")
                 }}</template>
                 <template slot="content">
-                  <p class="bx--form__helper-text">
+                  <p class="bx--form__helper-text settings-advanced__notice">
                     {{ $t("settings.admin_password_reset_notice") }}
                   </p>
                   <NsInlineNotification
@@ -122,20 +125,7 @@
                     :description="error.resetAdminPassword"
                     :showCloseButton="false"
                   />
-                  <NsButton
-                    v-if="!editingAdminPassword"
-                    kind="secondary"
-                    type="button"
-                    :disabled="
-                      loading.getConfiguration ||
-                      loading.configureModule ||
-                      loading.resetAdminPassword
-                    "
-                    @click="beginAdminPasswordEdit"
-                  >
-                    {{ $t("settings.modify_admin_password") }}
-                  </NsButton>
-                  <div v-else>
+                  <div>
                     <NsTextInput
                       :label="$t('settings.new_admin_password')"
                       v-model="adminPassword"
@@ -161,6 +151,9 @@
                       :invalid-message="error.admin_password_confirmation"
                       ref="admin_password_confirmation"
                     />
+                    <p class="bx--form__helper-text settings-advanced__2fa-help">
+                      {{ $t("settings.admin_password_reset_2fa_help") }}
+                    </p>
                     <NsCheckbox
                       v-model="resetTwoFactor"
                       :label="$t('settings.reset_2fa')"
@@ -168,16 +161,6 @@
                         loading.resetAdminPassword || loading.configureModule
                       "
                     />
-                    <NsButton
-                      kind="tertiary"
-                      type="button"
-                      :disabled="
-                        loading.resetAdminPassword || loading.configureModule
-                      "
-                      @click="cancelAdminPasswordEdit"
-                    >
-                      {{ $t("common.cancel") }}
-                    </NsButton>
                   </div>
                 </template>
               </cv-accordion-item>
@@ -279,7 +262,6 @@ export default {
       adminPassword: "",
       adminPasswordConfirmation: "",
       adminPasswordInitialized: false,
-      editingAdminPassword: false,
       resetTwoFactor: false,
       confirmAdminSecurityChangesVisible: false,
       pendingAdminPasswordReset: false,
@@ -371,9 +353,7 @@ export default {
       this.letsEncrypt = config.lets_encrypt;
       this.sshPort = String(config.ssh_port || 2222);
       this.adminPasswordInitialized = config.admin_password_initialized === true;
-      if (!this.editingAdminPassword) {
-        this.adminPassword = "";
-      }
+      this.adminPassword = "";
       this.focusElement("fqdn");
     },
     validateConfigureModule() {
@@ -415,7 +395,6 @@ export default {
     adminPasswordResetRequested() {
       return (
         this.adminPasswordInitialized &&
-        this.editingAdminPassword &&
         (this.adminPassword !== "" ||
           this.adminPasswordConfirmation !== "" ||
           this.resetTwoFactor)
@@ -462,25 +441,6 @@ export default {
     },
     cancelAdminSecurityConfirmation() {
       this.confirmAdminSecurityChangesVisible = false;
-    },
-    beginAdminPasswordEdit() {
-      this.adminPassword = "";
-      this.adminPasswordConfirmation = "";
-      this.resetTwoFactor = false;
-      this.error.admin_password = "";
-      this.error.admin_password_confirmation = "";
-      this.error.resetAdminPassword = "";
-      this.resetPasswordSuccess = false;
-      this.editingAdminPassword = true;
-    },
-    cancelAdminPasswordEdit() {
-      this.adminPassword = "";
-      this.adminPasswordConfirmation = "";
-      this.resetTwoFactor = false;
-      this.error.admin_password = "";
-      this.error.admin_password_confirmation = "";
-      this.error.resetAdminPassword = "";
-      this.editingAdminPassword = false;
     },
     validateResetAdminPassword() {
       this.error.admin_password = "";
@@ -579,7 +539,6 @@ export default {
       this.adminPassword = "";
       this.adminPasswordConfirmation = "";
       this.resetTwoFactor = false;
-      this.editingAdminPassword = false;
       this.resetPasswordSuccess = true;
     },
     configureModuleValidationFailed(validationErrors) {
@@ -697,4 +656,20 @@ export default {
 
 <style scoped lang="scss">
 @import "../styles/carbon-utils";
+
+.settings-advanced {
+  ::v-deep .bx--accordion__content {
+    margin-left: 0;
+    padding-left: 0;
+  }
+}
+
+.settings-advanced__notice {
+  margin-bottom: 0.5rem;
+}
+
+.settings-advanced__2fa-help {
+  margin: 0 0 0.5rem;
+}
+
 </style>
