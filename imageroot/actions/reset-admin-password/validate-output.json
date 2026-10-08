@@ -1,0 +1,7 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "reset-admin-password output",
+    "$id": "http://schema.nethserver.org/borgbackupserver/reset-admin-password-output.json",
+    "type": "object",
+    "additionalProperties": false
+}

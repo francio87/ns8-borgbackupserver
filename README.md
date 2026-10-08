@@ -15,7 +15,21 @@ The upstream image is pinned in `build-images.sh` to `v2.98.5`. Update the BBS s
 
 In the module Settings page, set the FQDN, choose whether NS8 Traefik should request a Let's Encrypt certificate, and select the external SSH port. The default SSH port is `2222`; ports below `1024` are not accepted for this rootless module. Before applying a changed port, the module checks whether it is listening on the node and whether it conflicts with the NS8-assigned web backend port.
 
-The Settings page can optionally set the BBS administrator password during the initial setup. After BBS initializes, the field is locked and password changes must be made in the BBS web interface. Leaving it empty preserves BBS's generated initial password behavior. The initial password is not returned by module configuration and is cleared from module state after BBS initialization.
+The Settings page can optionally set the BBS administrator password during the initial setup. After BBS initializes, the initial-password field is no longer used. If the password fields are empty and the 2FA checkbox is unchecked, **Save** only changes the hostname, certificate, or Borg SSH port. To reset the standard `admin` account password, expand **Advanced options**, select **Modify password**, and enter and confirm the new password. The optional 2FA checkbox also clears its TOTP secret and recovery codes as part of that password reset; MFA managed by an external OIDC provider is not affected. **Save** asks for confirmation before changing the password. Leaving the initial password empty preserves BBS's generated initial password behavior. The initial password is not returned by module configuration and is cleared from module state after BBS initialization.
+
+If you cannot access the BBS web interface, the emergency command is also available from an interactive shell on the NS8 node:
+
+```bash
+runagent -m borgbackupserver1 bbs-reset-admin-password
+```
+
+The command lists BBS administrator accounts, prompts for the account ID and new password, and updates the password hash in the BBS database. It also invalidates outstanding password-recovery tokens. By default it leaves two-factor authentication enabled. To reset the BBS TOTP setup at the same time, add `--reset-2fa`:
+
+```bash
+runagent -m borgbackupserver1 bbs-reset-admin-password --reset-2fa
+```
+
+This option requires confirmation and clears the TOTP secret and recovery codes. The user can then sign in with the new password and enroll 2FA again. It does not reset MFA managed by an external OIDC identity provider. Local password login must be enabled for the new password to work.
 
 For example, if the instance is `borgbackupserver1`:
 
@@ -31,7 +45,7 @@ If you leave the initial password field empty, BBS generates an administrator pa
 
 ## Data and backup
 
-All BBS persistent files live in the named Podman volume `bbs-data`, mounted at `/var/bbs`. This includes Borg repositories, configuration and `APP_KEY`, SSH host keys, and ClickHouse catalog data. The module's NS8 backup includes that volume and generates an additional BBS server archive containing a MariaDB dump, application configuration, and SSH host keys. The live MariaDB and ClickHouse files plus temporary/cache directories are excluded from Restic; ClickHouse catalogs are intentionally rebuilt from Borg repositories, and restore imports the SQL dump before applying the module configuration.
+All BBS persistent files live in the named Podman volume `bbs-data`, mounted at `/var/bbs`. This includes Borg repositories, configuration and `APP_KEY`, SSH host keys, and ClickHouse catalog data. The module's NS8 backup includes that volume and generates an additional BBS server archive containing a MariaDB dump, application configuration, and SSH host keys. The live MariaDB and ClickHouse files plus temporary/cache directories are excluded from Restic. Restore imports the SQL dump before applying the module configuration, but it does not automatically rebuild the ClickHouse catalog. After restoring the module, open each repository in BBS and run **Rebuild Missing** to index existing recovery points that are not yet in the catalog. The rebuild runs as a BBS background task and can take a long time for repositories with many backups.
 
 Because the volume includes client Borg repositories, NS8 backups can be large and may duplicate data already protected elsewhere. Ensure the configured NS8 backup destination has enough capacity and retention appropriate for those repositories.
 
