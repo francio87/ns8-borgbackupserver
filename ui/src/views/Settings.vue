@@ -207,8 +207,8 @@
           <cv-modal
             :visible="confirmAdminSecurityChangesVisible"
             @modal-hidden="cancelAdminSecurityConfirmation"
-            @modal-primary-click="confirmAdminSecurityChanges"
-            @modal-secondary-click="cancelAdminSecurityConfirmation"
+            @primary-click="confirmAdminSecurityChanges"
+            @secondary-click="cancelAdminSecurityConfirmation"
           >
             <template slot="label">{{
               $t("settings.admin_security_confirmation_label")
