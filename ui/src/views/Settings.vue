@@ -30,7 +30,7 @@
               </p>
             </cv-column>
           </cv-row>
-          <cv-form @submit.prevent="configureModule">
+          <cv-form @submit.prevent="saveSettings">
             <NsTextInput
               :label="$t('settings.fqdn')"
               v-model="fqdn"
@@ -93,6 +93,95 @@
                 ref="admin_password"
               />
             </template>
+            <cv-accordion v-if="adminPasswordInitialized">
+              <cv-accordion-item>
+                <template slot="title">{{
+                  $t("settings.advanced_options")
+                }}</template>
+                <template slot="content">
+                  <p class="bx--form__helper-text">
+                    {{ $t("settings.admin_password_reset_notice") }}
+                  </p>
+                  <NsInlineNotification
+                    v-if="resetPasswordSuccess"
+                    kind="success"
+                    :title="$t('action.reset-admin-password')"
+                    :description="
+                      $t(
+                        resetPasswordSuccessTwoFactor
+                          ? 'settings.admin_password_reset_success_2fa'
+                          : 'settings.admin_password_reset_success'
+                      )
+                    "
+                    :showCloseButton="false"
+                  />
+                  <NsInlineNotification
+                    v-if="error.resetAdminPassword"
+                    kind="error"
+                    :title="$t('action.reset-admin-password')"
+                    :description="error.resetAdminPassword"
+                    :showCloseButton="false"
+                  />
+                  <NsButton
+                    v-if="!editingAdminPassword"
+                    kind="secondary"
+                    type="button"
+                    :disabled="
+                      loading.getConfiguration ||
+                      loading.configureModule ||
+                      loading.resetAdminPassword
+                    "
+                    @click="beginAdminPasswordEdit"
+                  >
+                    {{ $t("settings.modify_admin_password") }}
+                  </NsButton>
+                  <div v-else>
+                    <NsTextInput
+                      :label="$t('settings.new_admin_password')"
+                      v-model="adminPassword"
+                      type="password"
+                      :password-show-label="$t('settings.show_password')"
+                      :password-hide-label="$t('settings.hide_password')"
+                      :helper-text="$t('settings.new_admin_password_help')"
+                      :disabled="
+                        loading.resetAdminPassword || loading.configureModule
+                      "
+                      :invalid-message="error.admin_password"
+                      ref="new_admin_password"
+                    />
+                    <NsTextInput
+                      :label="$t('settings.confirm_admin_password')"
+                      v-model="adminPasswordConfirmation"
+                      type="password"
+                      :password-show-label="$t('settings.show_password')"
+                      :password-hide-label="$t('settings.hide_password')"
+                      :disabled="
+                        loading.resetAdminPassword || loading.configureModule
+                      "
+                      :invalid-message="error.admin_password_confirmation"
+                      ref="admin_password_confirmation"
+                    />
+                    <NsCheckbox
+                      v-model="resetTwoFactor"
+                      :label="$t('settings.reset_2fa')"
+                      :disabled="
+                        loading.resetAdminPassword || loading.configureModule
+                      "
+                    />
+                    <NsButton
+                      kind="tertiary"
+                      type="button"
+                      :disabled="
+                        loading.resetAdminPassword || loading.configureModule
+                      "
+                      @click="cancelAdminPasswordEdit"
+                    >
+                      {{ $t("common.cancel") }}
+                    </NsButton>
+                  </div>
+                </template>
+              </cv-accordion-item>
+            </cv-accordion>
             <cv-row v-if="error.configureModule">
               <cv-column>
                 <NsInlineNotification
@@ -106,7 +195,7 @@
             <NsButton
               kind="primary"
               :icon="Save20"
-              :loading="loading.configureModule"
+              :loading="loading.configureModule || loading.resetAdminPassword"
               :disabled="
                 loading.getConfiguration ||
                 loading.configureModule ||
@@ -115,95 +204,40 @@
               >{{ $t("settings.save") }}</NsButton
             >
           </cv-form>
-          <cv-row v-if="adminPasswordInitialized">
-            <cv-column>
-              <p class="bx--form__helper-text">
-                {{ $t("settings.admin_password_reset_notice") }}
-              </p>
-              <NsInlineNotification
-                v-if="resetPasswordSuccess"
-                kind="success"
-                :title="$t('action.reset-admin-password')"
-                :description="
+          <cv-modal
+            :visible="confirmAdminSecurityChangesVisible"
+            @modal-hidden="cancelAdminSecurityConfirmation"
+            @modal-primary-click="confirmAdminSecurityChanges"
+            @modal-secondary-click="cancelAdminSecurityConfirmation"
+          >
+            <template slot="label">{{
+              $t("settings.admin_security_confirmation_label")
+            }}</template>
+            <template slot="title">{{
+              $t("settings.admin_security_confirmation_title")
+            }}</template>
+            <template slot="content">
+              <p>
+                {{
                   $t(
-                    resetPasswordSuccessTwoFactor
-                      ? 'settings.admin_password_reset_success_2fa'
-                      : 'settings.admin_password_reset_success'
+                    resetTwoFactor
+                      ? "settings.confirm_admin_password_reset_2fa"
+                      : "settings.confirm_admin_password_reset"
                   )
-                "
-                :showCloseButton="false"
-              />
-              <NsButton
-                v-if="!editingAdminPassword"
-                kind="secondary"
-                :disabled="
-                  loading.getConfiguration ||
-                  loading.configureModule ||
-                  loading.resetAdminPassword
-                "
-                @click="beginAdminPasswordEdit"
-              >
-                {{ $t("settings.modify_admin_password") }}
-              </NsButton>
-              <cv-form v-else @submit.prevent="resetAdminPassword">
-                <NsTextInput
-                  :label="$t('settings.new_admin_password')"
-                  v-model="adminPassword"
-                  type="password"
-                  :password-show-label="$t('settings.show_password')"
-                  :password-hide-label="$t('settings.hide_password')"
-                  :helper-text="$t('settings.new_admin_password_help')"
-                  :disabled="loading.resetAdminPassword || loading.configureModule"
-                  :invalid-message="error.admin_password"
-                  ref="new_admin_password"
-                />
-                <NsTextInput
-                  :label="$t('settings.confirm_admin_password')"
-                  v-model="adminPasswordConfirmation"
-                  type="password"
-                  :password-show-label="$t('settings.show_password')"
-                  :password-hide-label="$t('settings.hide_password')"
-                  :disabled="loading.resetAdminPassword || loading.configureModule"
-                  :invalid-message="error.admin_password_confirmation"
-                  ref="admin_password_confirmation"
-                />
-                <NsCheckbox
-                  v-model="resetTwoFactor"
-                  :label="$t('settings.reset_2fa')"
-                  :disabled="loading.resetAdminPassword || loading.configureModule"
-                />
-                <cv-row v-if="error.resetAdminPassword">
-                  <cv-column>
-                    <NsInlineNotification
-                      kind="error"
-                      :title="$t('action.reset-admin-password')"
-                      :description="error.resetAdminPassword"
-                      :showCloseButton="false"
-                    />
-                  </cv-column>
-                </cv-row>
-                <NsButton
-                  kind="primary"
-                  :loading="loading.resetAdminPassword"
-                  :disabled="
-                    loading.resetAdminPassword || loading.configureModule
-                  "
-                >
-                  {{ $t("settings.reset_admin_password") }}
-                </NsButton>
-                <NsButton
-                  kind="tertiary"
-                  type="button"
-                  :disabled="
-                    loading.resetAdminPassword || loading.configureModule
-                  "
-                  @click="cancelAdminPasswordEdit"
-                >
-                  {{ $t("common.cancel") }}
-                </NsButton>
-              </cv-form>
-            </cv-column>
-          </cv-row>
+                }}
+              </p>
+            </template>
+            <template slot="secondary-button">{{
+              $t("common.cancel")
+            }}</template>
+            <template slot="primary-button">{{
+              $t(
+                resetTwoFactor
+                  ? "settings.confirm_admin_password_reset_2fa_action"
+                  : "settings.confirm_admin_password_reset_action"
+              )
+            }}</template>
+          </cv-modal>
         </cv-tile>
       </cv-column>
     </cv-row>
@@ -247,6 +281,8 @@ export default {
       adminPasswordInitialized: false,
       editingAdminPassword: false,
       resetTwoFactor: false,
+      confirmAdminSecurityChangesVisible: false,
+      pendingAdminPasswordReset: false,
       resetPasswordSuccess: false,
       resetPasswordSuccessTwoFactor: false,
       loading: {
@@ -376,6 +412,57 @@ export default {
       }
       return isValidationOk;
     },
+    adminPasswordResetRequested() {
+      return (
+        this.adminPasswordInitialized &&
+        this.editingAdminPassword &&
+        (this.adminPassword !== "" ||
+          this.adminPasswordConfirmation !== "" ||
+          this.resetTwoFactor)
+      );
+    },
+    saveSettings() {
+      this.resetPasswordSuccess = false;
+      if (!this.validateConfigureModule()) {
+        return;
+      }
+
+      if (this.adminPasswordResetRequested()) {
+        if (!this.validateResetAdminPassword()) {
+          return;
+        }
+        this.confirmAdminSecurityChangesVisible = true;
+        return;
+      }
+
+      this.pendingAdminPasswordReset = false;
+      this.configureModule();
+    },
+    confirmAdminSecurityChanges() {
+      if (
+        this.pendingAdminPasswordReset ||
+        this.loading.configureModule ||
+        this.loading.resetAdminPassword
+      ) {
+        return;
+      }
+
+      if (
+        !this.validateConfigureModule() ||
+        !this.adminPasswordResetRequested() ||
+        !this.validateResetAdminPassword()
+      ) {
+        this.confirmAdminSecurityChangesVisible = false;
+        return;
+      }
+
+      this.confirmAdminSecurityChangesVisible = false;
+      this.pendingAdminPasswordReset = true;
+      this.configureModule();
+    },
+    cancelAdminSecurityConfirmation() {
+      this.confirmAdminSecurityChangesVisible = false;
+    },
     beginAdminPasswordEdit() {
       this.adminPassword = "";
       this.adminPasswordConfirmation = "";
@@ -398,6 +485,17 @@ export default {
     validateResetAdminPassword() {
       this.error.admin_password = "";
       this.error.admin_password_confirmation = "";
+      if (!this.adminPassword && !this.adminPasswordConfirmation) {
+        if (this.resetTwoFactor) {
+          this.error.admin_password = this.$t(
+            "settings.password_required_for_2fa_reset"
+          );
+          this.focusElement("new_admin_password");
+          return false;
+        }
+        return true;
+      }
+
       const passwordLength = new TextEncoder().encode(this.adminPassword).length;
       if (
         passwordLength < 8 ||
@@ -423,9 +521,6 @@ export default {
     async resetAdminPassword() {
       this.error.resetAdminPassword = "";
       this.resetPasswordSuccess = false;
-      if (!this.validateResetAdminPassword()) {
-        return;
-      }
 
       this.loading.resetAdminPassword = true;
       const taskAction = "reset-admin-password";
@@ -488,6 +583,7 @@ export default {
       this.resetPasswordSuccess = true;
     },
     configureModuleValidationFailed(validationErrors) {
+      this.pendingAdminPasswordReset = false;
       this.loading.configureModule = false;
       let focusAlreadySet = false;
 
@@ -515,6 +611,7 @@ export default {
     async configureModule() {
       const isValidationOk = this.validateConfigureModule();
       if (!isValidationOk) {
+        this.pendingAdminPasswordReset = false;
         return;
       }
 
@@ -572,6 +669,7 @@ export default {
         console.error(`error creating task ${taskAction}`);
         this.error.configureModule = this.getErrorMessage(err);
         this.loading.configureModule = false;
+        this.pendingAdminPasswordReset = false;
         return;
       }
     },
@@ -579,13 +677,19 @@ export default {
       console.error(`${args[1].action} aborted`);
       this.error.configureModule = this.$t("error.generic_error");
       this.loading.configureModule = false;
+      this.pendingAdminPasswordReset = false;
       this.getConfiguration();
     },
     configureModuleCompleted() {
+      const resetAdminPassword = this.pendingAdminPasswordReset;
+      this.pendingAdminPasswordReset = false;
       this.loading.configureModule = false;
 
       // reload configuration
       this.getConfiguration();
+      if (resetAdminPassword) {
+        this.resetAdminPassword();
+      }
     },
   },
 };
