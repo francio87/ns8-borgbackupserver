@@ -1,0 +1,19 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "reset-admin-password input",
+    "$id": "http://schema.nethserver.org/borgbackupserver/reset-admin-password-input.json",
+    "description": "Reset the standard BBS administrator password",
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["password", "reset_2fa"],
+    "properties": {
+        "password": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 72
+        },
+        "reset_2fa": {
+            "type": "boolean"
+        }
+    }
+}

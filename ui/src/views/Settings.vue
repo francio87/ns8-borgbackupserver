@@ -36,7 +36,11 @@
               v-model="fqdn"
               placeholder="bbs.example.com"
               :helper-text="$t('settings.fqdn_help')"
-              :disabled="loading.getConfiguration || loading.configureModule"
+              :disabled="
+                loading.getConfiguration ||
+                loading.configureModule ||
+                loading.resetAdminPassword
+              "
               :invalid-message="error.fqdn"
               ref="fqdn"
             />
@@ -44,7 +48,11 @@
               v-model="letsEncrypt"
               :label="$t('settings.lets_encrypt')"
               value="lets-encrypt"
-              :disabled="loading.getConfiguration || loading.configureModule"
+              :disabled="
+                loading.getConfiguration ||
+                loading.configureModule ||
+                loading.resetAdminPassword
+              "
             >
               <template slot="text-left">{{ $t("settings.disabled") }}</template>
               <template slot="text-right">{{ $t("settings.enabled") }}</template>
@@ -57,39 +65,34 @@
               min="1024"
               max="65535"
               :helper-text="$t('settings.ssh_port_help')"
-              :disabled="loading.getConfiguration || loading.configureModule"
-              :invalid-message="error.ssh_port"
-              ref="ssh_port"
-            />
-            <p class="bx--form__helper-text">
-              {{ $t("settings.admin_password_notice") }}
-            </p>
-            <NsTextInput
-              :label="$t('settings.admin_password')"
-              v-model="adminPassword"
-              :type="adminPasswordInitialized ? 'text' : 'password'"
-              :placeholder="
-                adminPasswordInitialized
-                  ? $t('settings.admin_password_mask')
-                  : ''
-              "
-              :password-show-label="$t('settings.show_password')"
-              :password-hide-label="$t('settings.hide_password')"
-              :helper-text="
-                $t(
-                  adminPasswordInitialized
-                    ? 'settings.admin_password_initialized'
-                    : 'settings.admin_password_help'
-                )
-              "
               :disabled="
                 loading.getConfiguration ||
                 loading.configureModule ||
-                adminPasswordInitialized
+                loading.resetAdminPassword
               "
-              :invalid-message="error.admin_password"
-              ref="admin_password"
+              :invalid-message="error.ssh_port"
+              ref="ssh_port"
             />
+            <template v-if="!adminPasswordInitialized">
+              <p class="bx--form__helper-text">
+                {{ $t("settings.admin_password_notice") }}
+              </p>
+              <NsTextInput
+                :label="$t('settings.admin_password')"
+                v-model="adminPassword"
+                type="password"
+                :password-show-label="$t('settings.show_password')"
+                :password-hide-label="$t('settings.hide_password')"
+                :helper-text="$t('settings.admin_password_help')"
+                :disabled="
+                  loading.getConfiguration ||
+                  loading.configureModule ||
+                  loading.resetAdminPassword
+                "
+                :invalid-message="error.admin_password"
+                ref="admin_password"
+              />
+            </template>
             <cv-row v-if="error.configureModule">
               <cv-column>
                 <NsInlineNotification
@@ -104,10 +107,103 @@
               kind="primary"
               :icon="Save20"
               :loading="loading.configureModule"
-              :disabled="loading.getConfiguration || loading.configureModule"
+              :disabled="
+                loading.getConfiguration ||
+                loading.configureModule ||
+                loading.resetAdminPassword
+              "
               >{{ $t("settings.save") }}</NsButton
             >
           </cv-form>
+          <cv-row v-if="adminPasswordInitialized">
+            <cv-column>
+              <p class="bx--form__helper-text">
+                {{ $t("settings.admin_password_reset_notice") }}
+              </p>
+              <NsInlineNotification
+                v-if="resetPasswordSuccess"
+                kind="success"
+                :title="$t('action.reset-admin-password')"
+                :description="
+                  $t(
+                    resetPasswordSuccessTwoFactor
+                      ? 'settings.admin_password_reset_success_2fa'
+                      : 'settings.admin_password_reset_success'
+                  )
+                "
+                :showCloseButton="false"
+              />
+              <NsButton
+                v-if="!editingAdminPassword"
+                kind="secondary"
+                :disabled="
+                  loading.getConfiguration ||
+                  loading.configureModule ||
+                  loading.resetAdminPassword
+                "
+                @click="beginAdminPasswordEdit"
+              >
+                {{ $t("settings.modify_admin_password") }}
+              </NsButton>
+              <cv-form v-else @submit.prevent="resetAdminPassword">
+                <NsTextInput
+                  :label="$t('settings.new_admin_password')"
+                  v-model="adminPassword"
+                  type="password"
+                  :password-show-label="$t('settings.show_password')"
+                  :password-hide-label="$t('settings.hide_password')"
+                  :helper-text="$t('settings.new_admin_password_help')"
+                  :disabled="loading.resetAdminPassword || loading.configureModule"
+                  :invalid-message="error.admin_password"
+                  ref="new_admin_password"
+                />
+                <NsTextInput
+                  :label="$t('settings.confirm_admin_password')"
+                  v-model="adminPasswordConfirmation"
+                  type="password"
+                  :password-show-label="$t('settings.show_password')"
+                  :password-hide-label="$t('settings.hide_password')"
+                  :disabled="loading.resetAdminPassword || loading.configureModule"
+                  :invalid-message="error.admin_password_confirmation"
+                  ref="admin_password_confirmation"
+                />
+                <NsCheckbox
+                  v-model="resetTwoFactor"
+                  :label="$t('settings.reset_2fa')"
+                  :disabled="loading.resetAdminPassword || loading.configureModule"
+                />
+                <cv-row v-if="error.resetAdminPassword">
+                  <cv-column>
+                    <NsInlineNotification
+                      kind="error"
+                      :title="$t('action.reset-admin-password')"
+                      :description="error.resetAdminPassword"
+                      :showCloseButton="false"
+                    />
+                  </cv-column>
+                </cv-row>
+                <NsButton
+                  kind="primary"
+                  :loading="loading.resetAdminPassword"
+                  :disabled="
+                    loading.resetAdminPassword || loading.configureModule
+                  "
+                >
+                  {{ $t("settings.reset_admin_password") }}
+                </NsButton>
+                <NsButton
+                  kind="tertiary"
+                  type="button"
+                  :disabled="
+                    loading.resetAdminPassword || loading.configureModule
+                  "
+                  @click="cancelAdminPasswordEdit"
+                >
+                  {{ $t("common.cancel") }}
+                </NsButton>
+              </cv-form>
+            </cv-column>
+          </cv-row>
         </cv-tile>
       </cv-column>
     </cv-row>
@@ -147,10 +243,16 @@ export default {
       letsEncrypt: false,
       sshPort: "2222",
       adminPassword: "",
+      adminPasswordConfirmation: "",
       adminPasswordInitialized: false,
+      editingAdminPassword: false,
+      resetTwoFactor: false,
+      resetPasswordSuccess: false,
+      resetPasswordSuccessTwoFactor: false,
       loading: {
         getConfiguration: false,
         configureModule: false,
+        resetAdminPassword: false,
       },
       error: {
         getConfiguration: "",
@@ -158,6 +260,8 @@ export default {
         fqdn: "",
         ssh_port: "",
         admin_password: "",
+        admin_password_confirmation: "",
+        resetAdminPassword: "",
       },
     };
   },
@@ -231,7 +335,9 @@ export default {
       this.letsEncrypt = config.lets_encrypt;
       this.sshPort = String(config.ssh_port || 2222);
       this.adminPasswordInitialized = config.admin_password_initialized === true;
-      this.adminPassword = "";
+      if (!this.editingAdminPassword) {
+        this.adminPassword = "";
+      }
       this.focusElement("fqdn");
     },
     validateConfigureModule() {
@@ -269,6 +375,117 @@ export default {
         isValidationOk = false;
       }
       return isValidationOk;
+    },
+    beginAdminPasswordEdit() {
+      this.adminPassword = "";
+      this.adminPasswordConfirmation = "";
+      this.resetTwoFactor = false;
+      this.error.admin_password = "";
+      this.error.admin_password_confirmation = "";
+      this.error.resetAdminPassword = "";
+      this.resetPasswordSuccess = false;
+      this.editingAdminPassword = true;
+    },
+    cancelAdminPasswordEdit() {
+      this.adminPassword = "";
+      this.adminPasswordConfirmation = "";
+      this.resetTwoFactor = false;
+      this.error.admin_password = "";
+      this.error.admin_password_confirmation = "";
+      this.error.resetAdminPassword = "";
+      this.editingAdminPassword = false;
+    },
+    validateResetAdminPassword() {
+      this.error.admin_password = "";
+      this.error.admin_password_confirmation = "";
+      const passwordLength = new TextEncoder().encode(this.adminPassword).length;
+      if (
+        passwordLength < 8 ||
+        passwordLength > 72 ||
+        /[\r\n]/.test(this.adminPassword) ||
+        this.adminPassword.includes("\0")
+      ) {
+        this.error.admin_password = this.$t(
+          "settings.invalid_reset_admin_password"
+        );
+        this.focusElement("new_admin_password");
+        return false;
+      }
+      if (this.adminPassword !== this.adminPasswordConfirmation) {
+        this.error.admin_password_confirmation = this.$t(
+          "settings.admin_password_mismatch"
+        );
+        this.focusElement("admin_password_confirmation");
+        return false;
+      }
+      return true;
+    },
+    async resetAdminPassword() {
+      this.error.resetAdminPassword = "";
+      this.resetPasswordSuccess = false;
+      if (!this.validateResetAdminPassword()) {
+        return;
+      }
+
+      this.loading.resetAdminPassword = true;
+      const taskAction = "reset-admin-password";
+      const eventId = this.getUuid();
+      this.core.$root.$once(
+        `${taskAction}-aborted-${eventId}`,
+        this.resetAdminPasswordAborted
+      );
+      this.core.$root.$once(
+        `${taskAction}-validation-failed-${eventId}`,
+        this.resetAdminPasswordValidationFailed
+      );
+      this.core.$root.$once(
+        `${taskAction}-completed-${eventId}`,
+        this.resetAdminPasswordCompleted
+      );
+
+      const res = await to(
+        this.createModuleTaskForApp(this.instanceName, {
+          action: taskAction,
+          data: {
+            password: this.adminPassword,
+            reset_2fa: this.resetTwoFactor,
+          },
+          extra: {
+            title: this.$t("action." + taskAction),
+            eventId,
+          },
+        })
+      );
+      if (res[0]) {
+        this.error.resetAdminPassword = this.getErrorMessage(res[0]);
+        this.loading.resetAdminPassword = false;
+      }
+    },
+    resetAdminPasswordAborted(taskResult, taskContext) {
+      console.error(`${taskContext.action} aborted`, taskResult);
+      this.error.resetAdminPassword = this.$t("error.generic_error");
+      this.loading.resetAdminPassword = false;
+    },
+    resetAdminPasswordValidationFailed(validationErrors) {
+      this.loading.resetAdminPassword = false;
+      for (const validationError of validationErrors) {
+        if (validationError.field === "password") {
+          this.error.admin_password = this.$t(
+            "settings.invalid_reset_admin_password"
+          );
+        } else {
+          this.error.resetAdminPassword = this.$t("error.validation_error");
+        }
+      }
+    },
+    resetAdminPasswordCompleted() {
+      this.resetPasswordSuccessTwoFactor = this.resetTwoFactor;
+      this.loading.resetAdminPassword = false;
+      this.adminPassword = "";
+      this.adminPasswordConfirmation = "";
+      this.resetTwoFactor = false;
+      this.editingAdminPassword = false;
+      this.resetPasswordSuccess = true;
     },
     configureModuleValidationFailed(validationErrors) {
       this.loading.configureModule = false;
@@ -347,7 +564,7 @@ export default {
       );
       const err = res[0];
 
-      if (!err) {
+      if (!err && !this.adminPasswordInitialized) {
         this.adminPassword = "";
       }
 

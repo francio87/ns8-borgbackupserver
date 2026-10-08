@@ -15,9 +15,9 @@ The upstream image is pinned in `build-images.sh` to `v2.98.5`. Update the BBS s
 
 In the module Settings page, set the FQDN, choose whether NS8 Traefik should request a Let's Encrypt certificate, and select the external SSH port. The default SSH port is `2222`; ports below `1024` are not accepted for this rootless module. Before applying a changed port, the module checks whether it is listening on the node and whether it conflicts with the NS8-assigned web backend port.
 
-The Settings page can optionally set the BBS administrator password during the initial setup. After BBS initializes, the field is locked and password changes must be made in the BBS web interface. Leaving it empty preserves BBS's generated initial password behavior. The initial password is not returned by module configuration and is cleared from module state after BBS initialization.
+The Settings page can optionally set the BBS administrator password during the initial setup. After BBS initializes, the initial-password field is no longer used. Saving the hostname, certificate, or Borg SSH port does not change the BBS password or 2FA. To reset the standard `admin` account password, use **Modify password** in Settings. The optional 2FA checkbox also clears its TOTP secret and recovery codes; MFA managed by an external OIDC provider is not affected. Leaving the initial password empty preserves BBS's generated initial password behavior. The initial password is not returned by module configuration and is cleared from module state after BBS initialization.
 
-If the password is lost, reset it from an interactive shell on the NS8 node with:
+If you cannot access the BBS web interface, the emergency command is also available from an interactive shell on the NS8 node:
 
 ```bash
 runagent -m borgbackupserver1 bbs-reset-admin-password
