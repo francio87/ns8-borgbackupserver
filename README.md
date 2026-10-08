@@ -23,7 +23,13 @@ If the password is lost, reset it from an interactive shell on the NS8 node with
 runagent -m borgbackupserver1 bbs-reset-admin-password
 ```
 
-The command lists BBS administrator accounts, prompts for the account ID and new password, and updates the password hash in the BBS database. It also invalidates outstanding password-recovery tokens. It does not change the account's authentication provider or disable two-factor authentication; local password login must be enabled for the new password to work.
+The command lists BBS administrator accounts, prompts for the account ID and new password, and updates the password hash in the BBS database. It also invalidates outstanding password-recovery tokens. By default it leaves two-factor authentication enabled. To reset the BBS TOTP setup at the same time, add `--reset-2fa`:
+
+```bash
+runagent -m borgbackupserver1 bbs-reset-admin-password --reset-2fa
+```
+
+This option requires confirmation and clears the TOTP secret and recovery codes. The user can then sign in with the new password and enroll 2FA again. It does not reset MFA managed by an external OIDC identity provider. Local password login must be enabled for the new password to work.
 
 For example, if the instance is `borgbackupserver1`:
 
