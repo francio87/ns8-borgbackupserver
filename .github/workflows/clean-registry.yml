@@ -3,17 +3,53 @@ name: "Clean up registry"
 on:
   delete:
   workflow_dispatch:
+    inputs:
+      ref:
+        description: "Image tag to clean up"
+        required: true
+        type: string
 
 permissions:
   packages: write
 
 jobs:
   delete_images:
-    name: "Delete ghcr.io images ${{ github.event.ref }}"
+    name: "Delete ghcr.io images ${{ inputs.ref || github.event.ref }}"
     runs-on: ubuntu-latest
     environment: Registry
     steps:
-      - uses: NethServer/ns8-github-actions/.github/actions/delete-image@v1
-        with:
-          images: "borgbackupserver"
-          delete_image_token: ${{ secrets.IMAGES_CLEANUP_TOKEN }}
+      - name: Delete the image version for the removed ref
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PACKAGE_OWNER: ${{ github.repository_owner }}
+          PACKAGE_OWNER_TYPE: ${{ github.event.repository.owner.type }}
+          PACKAGE_REF: ${{ inputs.ref || github.event.ref }}
+          PACKAGE_NAME: borgbackupserver
+        run: |
+          set -euo pipefail
+
+          ref_name="${PACKAGE_REF##*/}"
+          if [[ -z "$ref_name" ]]; then
+            echo "No image tag was specified" >&2
+            exit 1
+          fi
+
+          owner_type=users
+          if [[ "$PACKAGE_OWNER_TYPE" == "Organization" ]]; then
+            owner_type=orgs
+          fi
+
+          versions_path="$owner_type/$PACKAGE_OWNER/packages/container/$PACKAGE_NAME/versions"
+          version_ids=$(REF_NAME="$ref_name" gh api --paginate --jq \
+            '.[] | select(.metadata.container.tags == [env.REF_NAME]) | .id' \
+            "$versions_path?per_page=100")
+
+          if [[ -z "$version_ids" ]]; then
+            echo "No image version found for tag $ref_name"
+            exit 0
+          fi
+
+          while IFS= read -r version_id; do
+            gh api --method DELETE "$versions_path/$version_id"
+            echo "Deleted $PACKAGE_NAME:$ref_name (version $version_id)"
+          done <<< "$version_ids"
