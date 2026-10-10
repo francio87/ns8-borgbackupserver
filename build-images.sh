@@ -14,7 +14,6 @@ images=()
 repobase="${REPOBASE:-ghcr.io/nethserver}"
 # Configure the image name
 reponame="borgbackupserver"
-bbsimage="docker.io/marcpope/borgbackupserver:v2.98.7"
 
 # Create a new empty container image
 container=$(buildah from scratch)
@@ -41,7 +40,7 @@ buildah config --entrypoint=/ \
     --label="org.nethserver.tcp-ports-demand=1" \
     --label="org.nethserver.rootfull=0" \
     --label="org.nethserver.volumes=bbs-data" \
-    --label="org.nethserver.images=${bbsimage}" \
+    --label="org.nethserver.images=docker.io/marcpope/borgbackupserver:v2.98.7" \
     "${container}"
 # Commit the image
 buildah commit "${container}" "${repobase}/${reponame}"
