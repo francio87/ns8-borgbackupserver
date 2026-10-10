@@ -55,6 +55,19 @@ Check if the BBS web interface is reachable
     ...    return_rc=True  return_stdout=False
     Should Be Equal As Integers    ${rc}  0
 
+Check if an update recreates the BBS container
+    ${before} =    Execute Command    runagent -m ${module_id} podman inspect bbs --format '{{.Id}}'
+    ${output}  ${rc} =    Execute Command    api-cli run update-module --data '{"module_url":"${IMAGE_URL}","instances":["${module_id}"],"force":true}'
+    ...    return_rc=True
+    Should Be Equal As Integers    ${rc}  0
+    ${after} =    Execute Command    runagent -m ${module_id} podman inspect bbs --format '{{.Id}}'
+    Should Not Be Empty    ${before}
+    Should Not Be Empty    ${after}
+    Should Not Be Equal    ${before}    ${after}
+    ${expected} =    Execute Command    runagent -m ${module_id} printenv BORGBACKUPSERVER_IMAGE
+    ${actual} =    Execute Command    runagent -m ${module_id} podman inspect bbs --format '{{.ImageName}}'
+    Should Be Equal    ${actual}    ${expected}
+
 Check if Borg Backup Server is removed correctly
     ${rc} =    Execute Command    remove-module --no-preserve ${module_id}
     ...    return_rc=True  return_stdout=False

@@ -2,7 +2,7 @@
 
 This module runs the upstream [Borg Backup Server](https://github.com/marcpope/borgbackupserver) image as a dedicated, rootless Podman container. BBS includes its own Apache web app, MariaDB, ClickHouse, SSH daemon, and scheduler; the module does not split or modify those services.
 
-The upstream image is pinned in `build-images.sh` to `v2.98.5`. Update the BBS server through a newer NS8 module image, not the BBS in-app server updater: that updater changes the container filesystem outside the pinned image and can apply database migrations that are not reversible.
+The upstream image is pinned in `build-images.sh` to `v2.98.8`. Update the BBS server through a newer NS8 module image, not the BBS in-app server updater: that updater changes the container filesystem outside the pinned image and can apply database migrations that are not reversible.
 
 ## Requirements
 
