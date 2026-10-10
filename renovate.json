@@ -1,4 +1,10 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["local>NethServer/.github:ns8-automerge"]
+  "extends": ["local>NethServer/.github:ns8-automerge"],
+  "packageRules": [
+    {
+      "matchPackageNames": ["docker.io/marcpope/borgbackupserver"],
+      "automerge": false
+    }
+  ]
 }
