@@ -3,8 +3,10 @@
   "extends": ["local>NethServer/.github:ns8-automerge"],
   "packageRules": [
     {
-      "matchPackageNames": ["docker.io/marcpope/borgbackupserver"],
-      "automerge": false
+      "matchPackageNames": ["marcpope/borgbackupserver"],
+      "automerge": false,
+      "minimumReleaseAge": "2 days",
+      "rebaseWhen": "auto"
     }
   ]
 }
