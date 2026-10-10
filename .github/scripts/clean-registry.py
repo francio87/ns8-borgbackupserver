@@ -88,7 +88,7 @@ def untagged_candidates(versions, now, inspect_manifest, keep_days=7):
             and datetime.fromisoformat(v["updated_at"].replace("Z", "+00:00")) < cutoff]
 
 
-def prune_untagged(dry_run, keep_days):
+def prune_untagged(dry_run, keep_days, version_ids=None):
     if keep_days < 0:
         raise SystemExit("Untagged retention must not be negative")
     for status in ["in_progress", "queued", "waiting"]:
@@ -115,6 +115,8 @@ def prune_untagged(dry_run, keep_days):
             return json.load(response)
 
     selected = untagged_candidates(versions, datetime.now(timezone.utc), inspect_manifest, keep_days)
+    if version_ids is not None:
+        selected = [v for v in selected if v["id"] in version_ids]
     print(f"Untagged cleanup selected {len(selected)} versions (retention: {keep_days} days)", flush=True)
     for version in selected:
         current = api(f'{VERSIONS_PATH}/{version["id"]}')
@@ -188,9 +190,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--untagged", action="store_true")
     parser.add_argument("--keep-days", type=int, default=7)
+    parser.add_argument("--version-ids", default="")
     args = parser.parse_args()
     if args.untagged:
         check_scope()
-        prune_untagged(os.environ.get("DRY_RUN", "true") == "true", args.keep_days)
+        version_ids = {int(value) for value in args.version_ids.split(",")} if args.version_ids else None
+        prune_untagged(os.environ.get("DRY_RUN", "true") == "true", args.keep_days, version_ids)
     else:
         main()

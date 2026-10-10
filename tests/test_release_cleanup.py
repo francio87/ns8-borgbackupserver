@@ -196,3 +196,10 @@ with patch.object(cleanup, 'api', side_effect=[{'total_count': 0}] * 3 + [[untag
     mutations.assert_not_called()
 
 print('Untagged cleanup safety checks passed')
+
+with patch.object(cleanup, 'api', side_effect=[{'total_count': 0}] * 3 + [[untagged_image(1)]]), \
+        patch.object(cleanup.urllib.request, 'urlopen', side_effect=[BytesIO(b'{"token":"test-token"}'), BytesIO(b'{"schemaVersion":2}')]), \
+        patch.object(cleanup.subprocess, 'run') as mutations:
+    cleanup.prune_untagged(False, 0, {999})
+    mutations.assert_not_called()
+print('Explicit cleanup target checks passed')

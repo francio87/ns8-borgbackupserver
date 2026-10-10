@@ -23,6 +23,10 @@ on:
         description: "Days to retain untagged images; 0 for immediate manual cleanup"
         default: 7
         type: number
+      untagged_version_ids:
+        description: "Optional comma-separated GHCR IDs to limit manual untagged cleanup"
+        default: ''
+        type: string
 
 permissions:
   contents: write
@@ -68,4 +72,5 @@ jobs:
           REPOSITORY: ${{ github.repository }}
           DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && 'true' || 'false' }}
           KEEP_DAYS: ${{ github.event_name == 'workflow_dispatch' && format('{0}', inputs.untagged_keep_days) || '7' }}
-        run: python3 .github/scripts/clean-registry.py --untagged --keep-days "$KEEP_DAYS"
+          VERSION_IDS: ${{ inputs.untagged_version_ids || '' }}
+        run: python3 .github/scripts/clean-registry.py --untagged --keep-days "$KEEP_DAYS" --version-ids "$VERSION_IDS"

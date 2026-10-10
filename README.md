@@ -131,7 +131,9 @@ Use **Run workflow** with the default **dry_run** enabled to preview cleanup; le
 **ref** empty for release cleanup, or provide a removed branch name for branch cleanup.
 For an immediate manual cleanup of already reviewed untagged versions, set
 **untagged_keep_days** to `0`; otherwise leave its default of `7`. The dry run applies
-to both testing and untagged cleanup. Retired digests are no longer available for
+to both testing and untagged cleanup. Optionally set **untagged_version_ids** to a
+comma-separated list of reviewed GHCR version IDs to limit manual untagged cleanup.
+Retired digests are no longer available for
 direct downloads or restoring an old development build by digest.
 Publication and cleanup are restricted to `francio87/ns8-borgbackupserver` and
 `ghcr.io/francio87/borgbackupserver`; official NethServer repositories are dependencies only.
