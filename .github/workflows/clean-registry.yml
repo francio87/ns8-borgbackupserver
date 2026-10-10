@@ -2,54 +2,54 @@ name: "Clean up registry"
 
 on:
   delete:
+  release:
+    types: [published]
+  workflow_run:
+    workflows: ["Publish images"]
+    types: [completed]
+  schedule:
+    - cron: "45 7 * * *"
   workflow_dispatch:
     inputs:
       ref:
-        description: "Image tag to clean up"
-        required: true
+        description: "Removed branch tag to clean up; leave empty for stable release cleanup"
+        required: false
         type: string
+      dry_run:
+        description: "Preview without deleting images or pre-releases"
+        default: true
+        type: boolean
 
 permissions:
+  contents: write
   packages: write
+
+concurrency:
+  group: registry-cleanup
+  cancel-in-progress: false
 
 jobs:
   delete_images:
-    name: "Delete ghcr.io images ${{ inputs.ref || github.event.ref }}"
+    if: github.repository == 'francio87/ns8-borgbackupserver' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
     environment: Registry
     steps:
-      - name: Delete the image version for the removed ref
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+      - name: Check cleanup policy
+        run: python3 tests/test_release_cleanup.py
+      - name: Install official release tool
+        run: gh extension install NethServer/gh-ns8-release-module
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Clean obsolete testing images and pre-releases
         env:
           GH_TOKEN: ${{ github.token }}
           PACKAGE_OWNER: ${{ github.repository_owner }}
           PACKAGE_OWNER_TYPE: ${{ github.event.repository.owner.type }}
-          PACKAGE_REF: ${{ inputs.ref || github.event.ref }}
-          PACKAGE_NAME: borgbackupserver
-        run: |
-          set -euo pipefail
-
-          ref_name="${PACKAGE_REF##*/}"
-          if [[ -z "$ref_name" ]]; then
-            echo "No image tag was specified" >&2
-            exit 1
-          fi
-
-          owner_type=users
-          if [[ "$PACKAGE_OWNER_TYPE" == "Organization" ]]; then
-            owner_type=orgs
-          fi
-
-          versions_path="$owner_type/$PACKAGE_OWNER/packages/container/$PACKAGE_NAME/versions"
-          version_ids=$(REF_NAME="$ref_name" gh api --paginate --jq \
-            '.[] | select(.metadata.container.tags == [env.REF_NAME]) | .id' \
-            "$versions_path?per_page=100")
-
-          if [[ -z "$version_ids" ]]; then
-            echo "No image version found for tag $ref_name"
-            exit 0
-          fi
-
-          while IFS= read -r version_id; do
-            gh api --method DELETE "$versions_path/$version_id"
-            echo "Deleted $PACKAGE_NAME:$ref_name (version $version_id)"
-          done <<< "$version_ids"
+          PACKAGE_REF: ${{ inputs.ref || github.event.ref || (github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch) || '' }}
+          CHECK_BRANCH: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.event == 'push' && 'true' || 'false' }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && 'true' || 'false' }}
+          REPOSITORY: ${{ github.repository }}
+        run: python3 .github/scripts/clean-registry.py

@@ -2,6 +2,9 @@ name: "Publish images"
 
 on:
   push:
+    branches: ['**']
+  release:
+    types: [published]
   workflow_dispatch:
 
 permissions:
@@ -12,7 +15,7 @@ permissions:
 
 jobs:
   publish-images:
-    if: github.run_number > 1
+    if: github.repository == 'francio87/ns8-borgbackupserver' && github.run_number > 1
     uses: NethServer/ns8-github-actions/.github/workflows/publish-branch.yml@v1
   module:
     needs: publish-images
