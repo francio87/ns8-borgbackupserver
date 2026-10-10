@@ -6,6 +6,8 @@ import os
 import re
 import subprocess
 import urllib.request
+import argparse
+from datetime import datetime, timedelta, timezone
 
 
 NUMBER = r"(0|[1-9][0-9]*)"
@@ -73,6 +75,59 @@ def prereleases_between(releases, stable_tag):
     return tags
 
 
+def untagged_candidates(versions, now, inspect_manifest, keep_days=7):
+    referenced = set()
+    for version in versions:
+        manifest = inspect_manifest(version["name"])
+        referenced.update(item["digest"] for item in manifest.get("manifests", []))
+        if manifest.get("subject"):
+            referenced.add(manifest["subject"]["digest"])
+    cutoff = now - timedelta(days=keep_days)
+    return [v for v in versions
+            if not v["metadata"]["container"]["tags"] and v["name"] not in referenced
+            and datetime.fromisoformat(v["updated_at"].replace("Z", "+00:00")) < cutoff]
+
+
+def prune_untagged(dry_run, keep_days):
+    if keep_days < 0:
+        raise SystemExit("Untagged retention must not be negative")
+    for status in ["in_progress", "queued", "waiting"]:
+        runs = api(f"repos/{REPOSITORY}/actions/workflows/publish-images.yml/runs?status={status}&per_page=1")
+        if runs["total_count"]:
+            print("Publication is active; untagged cleanup deferred")
+            return
+    versions = api(VERSIONS_PATH + "?per_page=100", paginate=True)
+    registry = "https://ghcr.io"
+    with urllib.request.urlopen(registry + "/token?service=ghcr.io&scope=repository:francio87/borgbackupserver:pull", timeout=30) as response:
+        token = json.load(response)["token"]
+
+    def inspect_manifest(digest):
+        request = urllib.request.Request(
+            registry + "/v2/francio87/borgbackupserver/manifests/" + digest,
+            headers={"Authorization": "Bearer " + token, "Accept": ", ".join([
+                "application/vnd.oci.image.index.v1+json",
+                "application/vnd.oci.image.manifest.v1+json",
+                "application/vnd.docker.distribution.manifest.list.v2+json",
+                "application/vnd.docker.distribution.manifest.v2+json",
+            ])},
+        )
+        with urllib.request.urlopen(request, timeout=30) as response:
+            return json.load(response)
+
+    selected = untagged_candidates(versions, datetime.now(timezone.utc), inspect_manifest, keep_days)
+    print(f"Untagged cleanup selected {len(selected)} versions (retention: {keep_days} days)", flush=True)
+    for version in selected:
+        current = api(f'{VERSIONS_PATH}/{version["id"]}')
+        # Recheck immediately before deletion: a tag may have moved since inventory.
+        if (current["metadata"]["container"]["tags"]
+                or current["updated_at"] != version["updated_at"]):
+            print(f'Skipping changed version {version["id"]}', flush=True)
+            continue
+        print(f'{"Would delete" if dry_run else "Deleting"} untagged GHCR version {version["id"]}: {version["name"]}', flush=True)
+        if not dry_run:
+            subprocess.run(["gh", "api", "--method", "DELETE", f'{VERSIONS_PATH}/{version["id"]}'], check=True)
+
+
 def main():
     check_scope()
     if os.environ.get("CHECK_BRANCH") == "true":
@@ -130,4 +185,12 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--untagged", action="store_true")
+    parser.add_argument("--keep-days", type=int, default=7)
+    args = parser.parse_args()
+    if args.untagged:
+        check_scope()
+        prune_untagged(os.environ.get("DRY_RUN", "true") == "true", args.keep_days)
+    else:
+        main()

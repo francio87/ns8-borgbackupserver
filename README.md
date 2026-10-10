@@ -120,10 +120,19 @@ Testing images newer than stable are retained; only the latest is advertised.
 Deleting obsolete testing images prevents reinstalling or restoring those versions.
 
 Deleting a branch also cleans its single-tag GHCR image. Stable tags, `main`, `master`
-and `latest` are protected. Untagged digests are retained because they may be referenced
-by manifests. The workflow needs package admin access for its `GITHUB_TOKEN`.
+and `latest` are protected. Daily and empty-ref manual cleanup also removes untagged
+versions last updated more than seven days ago, after inspecting every image manifest.
+Publication and cleanup share a concurrency group so they do not modify the registry
+at the same time. Digests referenced by other manifests (including multiarch images and artifact subjects)
+are retained. Cleanup is deferred while publication is running, queued, or waiting,
+and each candidate is checked again for tags and metadata changes before deletion.
+The workflow needs package admin access for its `GITHUB_TOKEN`.
 Use **Run workflow** with the default **dry_run** enabled to preview cleanup; leave
 **ref** empty for release cleanup, or provide a removed branch name for branch cleanup.
+For an immediate manual cleanup of already reviewed untagged versions, set
+**untagged_keep_days** to `0`; otherwise leave its default of `7`. The dry run applies
+to both testing and untagged cleanup. Retired digests are no longer available for
+direct downloads or restoring an old development build by digest.
 Publication and cleanup are restricted to `francio87/ns8-borgbackupserver` and
 `ghcr.io/francio87/borgbackupserver`; official NethServer repositories are dependencies only.
 
@@ -138,8 +147,8 @@ Branch images and versioned testing releases have separate lifecycles:
 Enable automatic head-branch deletion for merged pull requests if their development
 images should be cleaned automatically. Cleanup checks branch existence again when
 a branch build completes, removing an image published after the branch was deleted.
-Shared digests and untagged versions are retained, so branch deletion does not guarantee
-that all storage associated with its previous builds is reclaimed.
+Shared digests are retained; obsolete untagged versions are handled by daily cleanup,
+so deleting a branch does not immediately reclaim all storage from its previous builds.
 Abandoning a branch does not withdraw its testing release: it can still be advertised
 until a newer version supersedes it. Withdraw such a release separately if necessary.
 

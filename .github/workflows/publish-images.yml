@@ -13,6 +13,10 @@ permissions:
   contents: write
   security-events: write
 
+concurrency:
+  group: borgbackupserver-registry
+  cancel-in-progress: false
+
 jobs:
   publish-images:
     if: github.repository == 'francio87/ns8-borgbackupserver' && github.run_number > 1
