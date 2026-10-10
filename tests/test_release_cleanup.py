@@ -147,3 +147,59 @@ for status in [0, 2, 128]:
             reads.assert_not_called()
 
 print("Deleted-branch publication checks passed")
+
+from datetime import datetime, timezone
+
+now = datetime(2026, 10, 10, tzinfo=timezone.utc)
+old = '2026-10-01T00:00:00Z'
+recent = '2026-10-09T00:00:00Z'
+
+def untagged_image(version_id, updated=old, *tags):
+    return {**image(version_id, *tags), 'name': f'sha256:{version_id}', 'updated_at': updated}
+
+untagged_versions = [untagged_image(1), untagged_image(2, recent),
+                     untagged_image(3, old, '0.2.1'), untagged_image(4),
+                     untagged_image(5, old, 'main'), untagged_image(6), untagged_image(7)]
+manifest_data = {'sha256:5': {'manifests': [{'digest': 'sha256:4'}]},
+                 'sha256:7': {'subject': {'digest': 'sha256:6'}}}
+inspect_manifest = lambda digest: manifest_data.get(digest, {})
+assert cleanup.untagged_candidates(untagged_versions, now, inspect_manifest) == [untagged_versions[0], untagged_versions[6]]
+assert cleanup.untagged_candidates(untagged_versions, now, inspect_manifest, 0) == [untagged_versions[0], untagged_versions[1], untagged_versions[6]]
+
+with patch.object(cleanup, 'api', return_value={'total_count': 1}), \
+        patch.object(cleanup.urllib.request, 'urlopen') as registry:
+    cleanup.prune_untagged(False, 0)
+    registry.assert_not_called()
+
+for dry_run, changed in [(True, False), (False, False), (False, True)]:
+    candidate = untagged_image(1)
+    current = untagged_image(1, old, '0.2.1') if changed else candidate
+    responses = [BytesIO(b'{"token":"test-registry-token"}'), BytesIO(b'{"schemaVersion":2}')]
+    with patch.object(cleanup, 'api', side_effect=[{'total_count': 0}] * 3 + [[candidate], current]), \
+            patch.object(cleanup.urllib.request, 'urlopen', side_effect=responses), \
+            patch.object(cleanup.subprocess, 'run') as mutations:
+        cleanup.prune_untagged(dry_run, 7)
+        if dry_run or changed:
+            mutations.assert_not_called()
+        else:
+            mutations.assert_called_once_with(['gh', 'api', '--method', 'DELETE', cleanup.VERSIONS_PATH + '/1'], check=True)
+
+with patch.object(cleanup, 'api', side_effect=[{'total_count': 0}] * 3 + [[untagged_image(1)]]), \
+        patch.object(cleanup.urllib.request, 'urlopen', side_effect=[BytesIO(b'{"token":"test-token"}'), OSError('Registry unavailable')]), \
+        patch.object(cleanup.subprocess, 'run') as mutations:
+    try:
+        cleanup.prune_untagged(False, 7)
+    except OSError:
+        pass
+    else:
+        raise AssertionError('Unreadable manifests must prevent deletion')
+    mutations.assert_not_called()
+
+print('Untagged cleanup safety checks passed')
+
+with patch.object(cleanup, 'api', side_effect=[{'total_count': 0}] * 3 + [[untagged_image(1)]]), \
+        patch.object(cleanup.urllib.request, 'urlopen', side_effect=[BytesIO(b'{"token":"test-token"}'), BytesIO(b'{"schemaVersion":2}')]), \
+        patch.object(cleanup.subprocess, 'run') as mutations:
+    cleanup.prune_untagged(False, 0, {999})
+    mutations.assert_not_called()
+print('Explicit cleanup target checks passed')
