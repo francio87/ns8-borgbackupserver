@@ -16,6 +16,7 @@ permissions:
 concurrency:
   group: borgbackupserver-registry
   cancel-in-progress: false
+  queue: max
 
 jobs:
   publish-images:
