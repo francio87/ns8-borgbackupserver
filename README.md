@@ -1,159 +1,116 @@
-# Borg Backup Server for NethServer 8
+# ns8-borgbackupserver
 
-This module runs the upstream [Borg Backup Server](https://github.com/marcpope/borgbackupserver) image as a dedicated, rootless Podman container. BBS includes its own Apache web app, MariaDB, ClickHouse, SSH daemon, and scheduler; the module does not split or modify those services.
+Run [Borg Backup Server](https://github.com/marcpope/borgbackupserver) (BBS) on NethServer 8.
 
-The upstream image is pinned in `build-images.sh` to `v2.98.8`. Update the BBS server through a newer NS8 module image, not the BBS in-app server updater: that updater changes the container filesystem outside the pinned image and can apply database migrations that are not reversible.
+The module runs the upstream BBS image as a single rootless Podman container. BBS includes its own Apache web app, MariaDB, ClickHouse, SSH daemon, and scheduler; the module does not split or modify those services. The upstream image version is pinned in `build-images.sh` and kept up to date by Renovate.
 
 ## Requirements
 
 - At least 2 GB RAM; 4 GB or more is recommended by upstream.
 - A DNS name for the BBS web interface.
-- TCP 80 and 443 reachable by browsers and agents. If using Let's Encrypt, the FQDN must resolve publicly to this node and HTTP validation must succeed.
-- The configured Borg SSH TCP port reachable by backup clients. NS8 opens this port in the node firewall; router/NAT forwarding must be configured separately.
+- TCP 80 and 443 reachable by browsers and agents. With Let's Encrypt, the FQDN must resolve publicly to this node.
+- The Borg SSH port reachable by backup clients. NS8 opens it in the node firewall; router/NAT forwarding must be configured separately.
+
+## Install
+
+Add the module repository, then install **Borg Backup Server** from the Software Center:
+
+```bash
+api-cli run add-repository --data '{"name":"francio87","url":"https://francio87.github.io/ns8-repomd/","status":true}'
+```
+
+The catalog refreshes every six hours. Alternatively, instantiate the module image directly:
+
+```bash
+add-module ghcr.io/francio87/borgbackupserver:latest 1
+```
+
+The command returns the module ID, for example `borgbackupserver1`.
 
 ## Configure
 
-In the module Settings page, set the FQDN, choose whether NS8 Traefik should request a Let's Encrypt certificate, and select the external SSH port. The default SSH port is `2222`; ports below `1024` are not accepted for this rootless module. Before applying a changed port, the module checks whether it is listening on the node and whether it conflicts with the NS8-assigned web backend port.
+Configure the module from its Settings page, or run `configure-module` with these parameters:
 
-The Settings page can optionally set the BBS administrator password during the initial setup. After BBS initializes, the initial-password field is no longer used. If the password fields are empty and the 2FA checkbox is unchecked, **Save** only changes the hostname, certificate, or Borg SSH port. To reset the standard `admin` account password, expand **Advanced options**, select **Modify password**, and enter and confirm the new password. The optional 2FA checkbox also clears its TOTP secret and recovery codes as part of that password reset; MFA managed by an external OIDC provider is not affected. **Save** asks for confirmation before changing the password. Leaving the initial password empty preserves BBS's generated initial password behavior. The initial password is not returned by module configuration and is cleared from module state after BBS initialization.
+- `fqdn` (required): host name of the BBS web interface
+- `lets_encrypt` (required): request a Let's Encrypt certificate through Traefik
+- `ssh_port` (required): external Borg SSH port, from `1024` to `65535` (default `2222`)
+- `admin_password` (optional): initial BBS `admin` password, used only before BBS initializes
 
-If you cannot access the BBS web interface, the emergency command is also available from an interactive shell on the NS8 node:
+Example:
+
+```bash
+api-cli run module/borgbackupserver1/configure-module --data - <<EOF
+{
+  "fqdn": "bbs.example.org",
+  "lets_encrypt": true,
+  "ssh_port": 2222
+}
+EOF
+```
+
+Notes:
+
+- The module configuration is authoritative: it sets BBS `APP_URL`, `server_host`, and `SSH_PORT`.
+- Before applying a new SSH port, the module checks that it is not already listening on the node or conflicting with the web backend port.
+- After changing the SSH port, restart existing agents. After changing the FQDN, also update the server URL saved in each agent configuration.
+- Without Let's Encrypt, Traefik uses the node's default certificate. BBS agents verify HTTPS certificates, so they must trust it; a publicly trusted certificate is recommended.
+- If `admin_password` is empty, BBS generates one on first startup and prints it to the container log. The initial password is never returned by `get-configuration` and is removed from module state after initialization.
+
+## Get the configuration
+
+```bash
+api-cli run module/borgbackupserver1/get-configuration --data null | jq
+```
+
+## Recover admin access
+
+From the Settings page, open **Advanced options**, select **Modify password**, and enter the new `admin` password. The optional 2FA checkbox also clears the TOTP secret and recovery codes. Leaving the password fields empty changes only the hostname, certificate, and SSH port.
+
+If the web interface is not reachable, run from a shell on the NS8 node:
 
 ```bash
 runagent -m borgbackupserver1 bbs-reset-admin-password
 ```
 
-The command lists BBS administrator accounts, prompts for the account ID and new password, and updates the password hash in the BBS database. It also invalidates outstanding password-recovery tokens. By default it leaves two-factor authentication enabled. To reset the BBS TOTP setup at the same time, add `--reset-2fa`:
+The command lists the administrator accounts, asks for the account ID and new password, and invalidates pending password-recovery tokens. Add `--reset-2fa` to also clear TOTP setup, so the user can enroll again. Neither method affects MFA managed by an external OIDC provider, and local password login must be enabled for the new password to work.
+
+## Data, backup and restore
+
+All persistent data lives in the Podman volume `bbs-data`, mounted at `/var/bbs`: client Borg repositories, configuration and `APP_KEY`, SSH host keys, and the ClickHouse catalog.
+
+The NS8 backup includes:
+
+- the `bbs-data` volume, excluding live MariaDB and ClickHouse files and temporary/cache directories;
+- a BBS server archive with a MariaDB dump, application configuration, and SSH host keys.
+
+> **After a restore**, open each repository in BBS and run **Rebuild Missing**. The restore imports the database but does not rebuild the ClickHouse catalog, so existing recovery points are not listed until the rebuild completes. This runs as a background task and can take a long time.
+
+Because the volume contains client Borg repositories, NS8 backups can be large and may duplicate data already protected elsewhere. Size the backup destination and retention accordingly.
+
+## Limitations
+
+- Do not use the BBS in-app server updater: it modifies the container outside the pinned image and can apply irreversible database migrations. Update BBS by updating the module.
+- SSH ports below `1024` are not supported, because the container is rootless.
+- Router/NAT forwarding for the SSH port is not managed by the module.
+
+## Logs
 
 ```bash
-runagent -m borgbackupserver1 bbs-reset-admin-password --reset-2fa
+runagent -m borgbackupserver1 podman logs bbs
 ```
 
-This option requires confirmation and clears the TOTP secret and recovery codes. The user can then sign in with the new password and enroll 2FA again. It does not reset MFA managed by an external OIDC identity provider. Local password login must be enabled for the new password to work.
-
-For example, if the instance is `borgbackupserver1`:
+## Uninstall
 
 ```bash
-api-cli run module/borgbackupserver1/configure-module --data '{"fqdn":"bbs.example.org","lets_encrypt":true,"ssh_port":2222}'
+remove-module --no-preserve borgbackupserver1
 ```
 
-The module configuration is authoritative. It sets BBS `APP_URL` and `server_host`, and passes the chosen SSH port both to the container's host-port mapping and BBS `SSH_PORT` setting. BBS receives the same SSH port advertised to agents. Restart existing agents after changing the port. A hostname change also requires updating the saved server URL in existing agent configurations; the server cannot rewrite those local client files.
-
-With Let's Encrypt disabled, Traefik uses the node's default certificate. BBS agents verify HTTPS certificates, so unattended agents must trust that certificate; a publicly trusted certificate is recommended when clients cannot be configured with the node's certificate.
-
-If you leave the initial password field empty, BBS generates an administrator password on first startup and prints it to the container log. To read the log, run `runagent -m borgbackupserver1 podman logs bbs`.
-
-## Data and backup
-
-All BBS persistent files live in the named Podman volume `bbs-data`, mounted at `/var/bbs`. This includes Borg repositories, configuration and `APP_KEY`, SSH host keys, and ClickHouse catalog data. The module's NS8 backup includes that volume and generates an additional BBS server archive containing a MariaDB dump, application configuration, and SSH host keys. The live MariaDB and ClickHouse files plus temporary/cache directories are excluded from Restic. Restore imports the SQL dump before applying the module configuration, but it does not automatically rebuild the ClickHouse catalog. After restoring the module, open each repository in BBS and run **Rebuild Missing** to index existing recovery points that are not yet in the catalog. The rebuild runs as a BBS background task and can take a long time for repositories with many backups.
-
-Because the volume includes client Borg repositories, NS8 backups can be large and may duplicate data already protected elsewhere. Ensure the configured NS8 backup destination has enough capacity and retention appropriate for those repositories.
-
-## Install
-
-Build and publish the module image, then instantiate it on an NS8 node:
-
-```bash
-add-module ghcr.io/francio87/borgbackupserver:0.0.1 1
-```
-
-The command returns the module ID. Configure it in the NS8 UI or with `configure-module` as shown above.
-
-## Releases and testing cleanup
-
-Follow the [NethServer versioning rules](https://handbook.nethserver.org/version_numbering/):
-use immutable tags such as `0.2.2-testing.1`, `0.2.2-testing.2`, then `0.2.2` for stable.
-Publish testing releases as GitHub **pre-releases**, so the NS8 workflows classify them correctly.
-Use the official release tool with our repository explicitly selected:
-
-```bash
-gh extension install NethServer/gh-ns8-release-module
-gh ns8-release-module create --repo francio87/ns8-borgbackupserver --testing --release-name 0.2.2-testing.1
-gh ns8-release-module create --repo francio87/ns8-borgbackupserver --release-name 0.2.2
-```
-
-Without `--release-refs`, GitHub uses the repository's default branch (`main`).
-To publish a testing release from another branch without merging it, switch to that
-branch, commit the changes, and push them before creating the release:
-
-```bash
-git switch my-testing-branch
-git push origin my-testing-branch
-gh ns8-release-module create \
-  --repo francio87/ns8-borgbackupserver \
-  --testing \
-  --release-name 0.2.2-testing.1 \
-  --release-refs "$(git rev-parse HEAD)"
-```
-
-Replace the branch and version with your own. `--release-refs` selects the committed
-source for the tag and pre-release; uncommitted changes are not included. Publication
-builds that tagged commit. Testing numbers are shared across all branches: use the
-next unused number (for example, `0.2.2-testing.2`) and never reuse an existing tag.
-The catalog advertises the highest testing SemVer newer than stable, regardless of
-its source branch. Publish the release workflow changes on `main` before using this
-procedure.
-
-Development images are published on branch pushes; versioned images are published
-when a GitHub release is published. Pushing a Git tag alone does not publish a release
-image. This avoids rebuilding the same version on both tag push and release publication.
-Do not rerun publication for an existing version; create a new version instead.
-Do not create releases from
-Actions with the default `GITHUB_TOKEN` and expect another workflow to publish the
-image: those events do not trigger downstream workflows. Verify image publication
-and application tests before announcing a release. `latest` follows `main`, not stable.
-
-The catalog at `https://francio87.github.io/ns8-repomd/` refreshes every six hours.
-It advertises the latest stable and, when newer, the latest testing. On NS8 Core 3.0+
-reload repositories, then use **Software Center → Installed → Instances → ⋮ → Update to testing version**.
-Instances installed from development tags such as `main` require a manual update.
-
-After successful publication, on a published release, and daily, **Clean up registry**
-checks that the newest stable GHCR image has a published stable GitHub release and
-is present in the public catalog. It deletes GHCR versions containing only
-`X.Y.Z-testing.N` tags whose base version is at most that stable version. Digests
-sharing a stable or any other tag are preserved. The official
-`gh ns8-release-module clean` command removes GitHub pre-releases created between
-the previous and selected stable release. **Git tags and stable images are retained.**
-Cleanup stops if that date window contains a newer or unrecognized pre-release.
-Testing images newer than stable are retained; only the latest is advertised.
-Deleting obsolete testing images prevents reinstalling or restoring those versions.
-
-Deleting a branch also cleans its single-tag GHCR image. Stable tags, `main`, `master`
-and `latest` are protected. Daily and empty-ref manual cleanup also removes untagged
-versions last updated more than seven days ago, after inspecting every image manifest.
-Publication and cleanup share a concurrency group so they do not modify the registry
-at the same time. Digests referenced by other manifests (including multiarch images and artifact subjects)
-are retained. Cleanup is deferred while publication is running, queued, or waiting,
-and each candidate is checked again for tags and metadata changes before deletion.
-The workflow needs package admin access for its `GITHUB_TOKEN`.
-Use **Run workflow** with the default **dry_run** enabled to preview cleanup; leave
-**ref** empty for release cleanup, or provide a removed branch name for branch cleanup.
-For an immediate manual cleanup of already reviewed untagged versions, set
-**untagged_keep_days** to `0`; otherwise leave its default of `7`. The dry run applies
-to both testing and untagged cleanup. Optionally set **untagged_version_ids** to a
-comma-separated list of reviewed GHCR version IDs to limit manual untagged cleanup.
-Retired digests are no longer available for
-direct downloads or restoring an old development build by digest.
-Publication and cleanup are restricted to `francio87/ns8-borgbackupserver` and
-`ghcr.io/francio87/borgbackupserver`; official NethServer repositories are dependencies only.
-
-Branch images and versioned testing releases have separate lifecycles:
-
-| Event | Development image | Versioned testing image, Git tag and GitHub pre-release |
-| --- | --- | --- |
-| Merge into `main`, keeping the branch | `main` and `latest` are rebuilt; the branch image remains | Unchanged; merging does not publish a stable release |
-| Delete the branch, merged or abandoned | Cleanup deletes its single-tag GHCR version | Unchanged; the release tag still identifies the tested commit |
-| Publish the corresponding stable | Branch images are not affected | Obsolete testing images and pre-releases are cleaned after the catalog is ready; Git tags remain |
-
-Enable automatic head-branch deletion for merged pull requests if their development
-images should be cleaned automatically. Cleanup checks branch existence again when
-a branch build completes, removing an image published after the branch was deleted.
-Shared digests are retained; obsolete untagged versions are handled by daily cleanup,
-so deleting a branch does not immediately reclaim all storage from its previous builds.
-Abandoning a branch does not withdraw its testing release: it can still be advertised
-until a newer version supersedes it. Withdraw such a release separately if necessary.
+This deletes the `bbs-data` volume, including all client Borg repositories stored on the server.
 
 ## Tests
 
 The Robot Framework tests use the NS8 standard testing infrastructure. See the [ns8-github-actions testing guide](https://github.com/NethServer/ns8-github-actions/blob/v1/README.md#running-tests-locally).
+
+## Releasing
+
+Versioning, publication, and registry cleanup are described in [RELEASING.md](RELEASING.md).
