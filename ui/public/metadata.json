@@ -3,7 +3,7 @@
   "description": {
     "en": "Manage BorgBackup clients, repositories, schedules, and restores."
   },
-  "categories": [],
+  "categories": ["storage"],
   "authors": [
     {
       "name": "Borg Backup Server NS8 module contributors"
