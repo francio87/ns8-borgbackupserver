@@ -72,3 +72,8 @@ Check if Borg Backup Server is removed correctly
     ${rc} =    Execute Command    remove-module --no-preserve ${module_id}
     ...    return_rc=True  return_stdout=False
     Should Be Equal As Integers    ${rc}  0
+
+Check if the Borg SSH firewall service is removed
+    ${rc} =    Execute Command    firewall-cmd --permanent --info-service=${module_id}
+    ...    return_rc=True  return_stdout=False  return_stderr=False
+    Should Not Be Equal As Integers    ${rc}  0

@@ -21,7 +21,7 @@
     </cv-row>
     <cv-row>
       <cv-column>
-        <cv-tile light>
+        <NsTile light>
           <cv-row v-if="fqdn">
             <cv-column>
               <p>
@@ -187,7 +187,7 @@
               >{{ $t("settings.save") }}</NsButton
             >
           </cv-form>
-          <cv-modal
+          <NsModal
             :visible="confirmAdminSecurityChangesVisible"
             @modal-hidden="cancelAdminSecurityConfirmation"
             @primary-click="confirmAdminSecurityChanges"
@@ -220,8 +220,8 @@
                   : "settings.confirm_admin_password_reset_action"
               )
             }}</template>
-          </cv-modal>
-        </cv-tile>
+          </NsModal>
+        </NsTile>
       </cv-column>
     </cv-row>
   </cv-grid>
