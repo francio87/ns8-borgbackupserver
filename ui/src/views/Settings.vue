@@ -376,11 +376,15 @@ export default {
         isValidationOk = false;
       }
 
+      // bcrypt uses at most 72 bytes; non-ASCII characters take 2-4
+      const adminPasswordLength = new TextEncoder().encode(
+        this.adminPassword
+      ).length;
       if (
         !this.adminPasswordInitialized &&
         this.adminPassword &&
-        (this.adminPassword.length < 8 ||
-          this.adminPassword.length > 128 ||
+        (adminPasswordLength < 8 ||
+          adminPasswordLength > 72 ||
           /[\r\n]/.test(this.adminPassword) ||
           this.adminPassword.includes("\0"))
       ) {

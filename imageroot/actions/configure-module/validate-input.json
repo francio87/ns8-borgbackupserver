@@ -22,7 +22,8 @@
             "maximum": 65535
         },
         "admin_password": {
-            "type": "string"
+            "type": "string",
+            "maxLength": 72
         }
     }
 }
