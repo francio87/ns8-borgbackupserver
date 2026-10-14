@@ -1,0 +1,14 @@
+#!/usr/bin/env python3
+
+#
+# Copyright (C) 2026 Nethesis S.r.l.
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+
+import os
+
+import agent
+
+# Close the Borg SSH port opened by configure-module. Ignore failures,
+# so a missing firewall service does not block the module removal.
+agent.remove_public_service(os.environ["MODULE_ID"])
