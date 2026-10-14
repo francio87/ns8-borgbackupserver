@@ -1,0 +1,17 @@
+#!/bin/bash
+
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+
+# On a fresh database the upstream entrypoint prints a generated admin
+# password to the container log when ADMIN_PASS is empty. Always pass a
+# random throwaway value instead: configure-module sets the real password
+# through bbs-reset-admin-password, and upstream ignores ADMIN_PASS once
+# the database is initialized.
+
+set -euo pipefail
+
+umask 077
+printf 'ADMIN_PASS=%s\n' "$(head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n')" \
+    > "${AGENT_STATE_DIR:?}/passwords.env"

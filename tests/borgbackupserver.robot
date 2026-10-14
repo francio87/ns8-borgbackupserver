@@ -5,6 +5,8 @@ Library    SSHLibrary
 ${ADMIN_USER}    admin
 ${ADMIN_PASSWORD}    Nethesis,1234
 ${module_id}    ${EMPTY}
+# Characters that would break shell, env-file or SQL quoting
+${BBS_ADMIN_PASSWORD}    Dfd90s%4&&%$&%$&àòàòà
 
 *** Keywords ***
 Login to cluster-admin
@@ -39,13 +41,39 @@ Take screenshots
     Take Screenshot    filename=${OUTPUT DIR}/browser/screenshot/2._Settings.png
     Close Browser
 
+Check if the first configuration requires the admin password
+    ${output}  ${rc} =    Execute Command    api-cli run module/${module_id}/configure-module --data '{"fqdn":"bbs.example.test","lets_encrypt":false,"ssh_port":2222}'
+    ...    return_rc=True
+    Should Not Be Equal As Integers    ${rc}  0
+    Should Contain    ${output}    admin_password_required
+
 Check if an occupied SSH port is rejected
-    ${output}  ${rc} =    Execute Command    api-cli run module/${module_id}/configure-module --data '{"fqdn":"bbs.example.test","lets_encrypt":false,"ssh_port":443}'
+    ${output}  ${rc} =    Execute Command    api-cli run module/${module_id}/configure-module --data '{"fqdn":"bbs.example.test","lets_encrypt":false,"ssh_port":443,"admin_password":"${BBS_ADMIN_PASSWORD}"}'
     ...    return_rc=True
     Should Not Be Equal As Integers    ${rc}  0
     Should Contain    ${output}    port_in_use
 
 Check if Borg Backup Server can be configured
+    ${rc} =    Execute Command    api-cli run module/${module_id}/configure-module --data '{"fqdn":"bbs.example.test","lets_encrypt":false,"ssh_port":2222,"admin_password":"${BBS_ADMIN_PASSWORD}"}'
+    ...    return_rc=True  return_stdout=False
+    Should Be Equal As Integers    ${rc}  0
+
+Check if the admin password is set without leaking it
+    Put File    ${CURDIR}/check-admin-password.sh    /tmp/check-admin-password.sh    mode=0755
+    ${rc} =    Execute Command    printf '%s' '${BBS_ADMIN_PASSWORD}' | /tmp/check-admin-password.sh ${module_id}
+    ...    return_rc=True  return_stdout=False
+    Should Be Equal As Integers    ${rc}  0
+    ${logs} =    Execute Command    runagent -m ${module_id} podman logs bbs    return_stderr=False
+    Should Not Contain    ${logs}    ADMIN CREDENTIALS
+    Should Not Contain    ${logs}    ${BBS_ADMIN_PASSWORD}
+    ${inspect} =    Execute Command    runagent -m ${module_id} podman inspect bbs
+    Should Not Contain    ${inspect}    ${BBS_ADMIN_PASSWORD}
+    ${output}  ${rc} =    Execute Command    api-cli run module/${module_id}/configure-module --data '{"fqdn":"bbs.example.test","lets_encrypt":false,"ssh_port":2222,"admin_password":"${BBS_ADMIN_PASSWORD}"}'
+    ...    return_rc=True
+    Should Not Be Equal As Integers    ${rc}  0
+    Should Contain    ${output}    admin_password_already_initialized
+
+Check if the configuration can be saved without the admin password
     ${rc} =    Execute Command    api-cli run module/${module_id}/configure-module --data '{"fqdn":"bbs.example.test","lets_encrypt":false,"ssh_port":2222}'
     ...    return_rc=True  return_stdout=False
     Should Be Equal As Integers    ${rc}  0

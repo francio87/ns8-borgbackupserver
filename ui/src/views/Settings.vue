@@ -92,6 +92,20 @@
                 :invalid-message="error.admin_password"
                 ref="admin_password"
               />
+              <NsTextInput
+                :label="$t('settings.confirm_initial_admin_password')"
+                v-model="adminPasswordConfirmation"
+                type="password"
+                :password-show-label="$t('settings.show_password')"
+                :password-hide-label="$t('settings.hide_password')"
+                :disabled="
+                  loading.getConfiguration ||
+                  loading.configureModule ||
+                  loading.resetAdminPassword
+                "
+                :invalid-message="error.admin_password_confirmation"
+                ref="admin_password_confirmation"
+              />
             </template>
             <cv-accordion
               v-if="adminPasswordInitialized"
@@ -354,6 +368,7 @@ export default {
       this.sshPort = String(config.ssh_port || 2222);
       this.adminPasswordInitialized = config.admin_password_initialized === true;
       this.adminPassword = "";
+      this.adminPasswordConfirmation = "";
       this.focusElement("fqdn");
     },
     validateConfigureModule() {
@@ -376,21 +391,33 @@ export default {
         isValidationOk = false;
       }
 
+      if (this.adminPasswordInitialized) {
+        return isValidationOk;
+      }
+
       // bcrypt uses at most 72 bytes; non-ASCII characters take 2-4
       const adminPasswordLength = new TextEncoder().encode(
         this.adminPassword
       ).length;
-      if (
-        !this.adminPasswordInitialized &&
-        this.adminPassword &&
-        (adminPasswordLength < 8 ||
-          adminPasswordLength > 72 ||
-          /[\r\n]/.test(this.adminPassword) ||
-          this.adminPassword.includes("\0"))
+      let adminPasswordError = "";
+      let adminPasswordField = "admin_password";
+      if (!this.adminPassword) {
+        adminPasswordError = "settings.admin_password_required";
+      } else if (
+        adminPasswordLength < 8 ||
+        adminPasswordLength > 72 ||
+        /[\r\n]/.test(this.adminPassword) ||
+        this.adminPassword.includes("\0")
       ) {
-        this.error.admin_password = this.$t("settings.invalid_admin_password");
+        adminPasswordError = "settings.invalid_admin_password";
+      } else if (this.adminPassword !== this.adminPasswordConfirmation) {
+        adminPasswordError = "settings.admin_password_mismatch";
+        adminPasswordField = "admin_password_confirmation";
+      }
+      if (adminPasswordError) {
+        this.error[adminPasswordField] = this.$t(adminPasswordError);
         if (isValidationOk) {
-          this.focusElement("admin_password");
+          this.focusElement(adminPasswordField);
         }
         isValidationOk = false;
       }
@@ -562,6 +589,7 @@ export default {
           ) {
             this.adminPasswordInitialized = true;
             this.adminPassword = "";
+            this.adminPasswordConfirmation = "";
           }
 
           if (!focusAlreadySet) {
@@ -605,7 +633,7 @@ export default {
         lets_encrypt: this.letsEncrypt,
         ssh_port: Number(this.sshPort),
       };
-      if (!this.adminPasswordInitialized && this.adminPassword) {
+      if (!this.adminPasswordInitialized) {
         data.admin_password = this.adminPassword;
       }
 
@@ -626,6 +654,7 @@ export default {
 
       if (!err && !this.adminPasswordInitialized) {
         this.adminPassword = "";
+        this.adminPasswordConfirmation = "";
       }
 
       if (err) {

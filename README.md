@@ -15,7 +15,7 @@ The upstream image is pinned in `build-images.sh` to `v2.98.8`. Update the BBS s
 
 In the module Settings page, set the FQDN, choose whether NS8 Traefik should request a Let's Encrypt certificate, and select the external SSH port. The default SSH port is `2222`; ports below `1024` are not accepted for this rootless module. Before applying a changed port, the module checks whether it is listening on the node and whether it conflicts with the NS8-assigned web backend port.
 
-The Settings page can optionally set the BBS administrator password during the initial setup. After BBS initializes, the initial-password field is no longer used. If the password fields are empty and the 2FA checkbox is unchecked, **Save** only changes the hostname, certificate, or Borg SSH port. To reset the standard `admin` account password, expand **Advanced options**, select **Modify password**, and enter and confirm the new password. The optional 2FA checkbox also clears its TOTP secret and recovery codes as part of that password reset; MFA managed by an external OIDC provider is not affected. **Save** asks for confirmation before changing the password. Leaving the initial password empty preserves BBS's generated initial password behavior. The initial password is not returned by module configuration and is cleared from module state after BBS initialization.
+The first configuration requires the password of the standard BBS `admin` account. The module waits for BBS to initialize its database, then sets the password hash directly in the database through standard input, the same way as a password reset: the password is not written to the module state, the container environment, or the logs. BBS's own initial password, which upstream would print to the container log, is never generated; the module passes a random throwaway value instead, and the hash is replaced right after initialization. After the first configuration, the initial-password field is no longer shown and `configure-module` rejects it. If the first configuration fails before the password is set, run it again with the password. If the password fields are empty and the 2FA checkbox is unchecked, **Save** only changes the hostname, certificate, or Borg SSH port. To reset the standard `admin` account password, expand **Advanced options**, select **Modify password**, and enter and confirm the new password. The optional 2FA checkbox also clears its TOTP secret and recovery codes as part of that password reset; MFA managed by an external OIDC provider is not affected. **Save** asks for confirmation before changing the password.
 
 If you cannot access the BBS web interface, the emergency command is also available from an interactive shell on the NS8 node:
 
@@ -34,14 +34,14 @@ This option requires confirmation and clears the TOTP secret and recovery codes.
 For example, if the instance is `borgbackupserver1`:
 
 ```bash
-api-cli run module/borgbackupserver1/configure-module --data '{"fqdn":"bbs.example.org","lets_encrypt":true,"ssh_port":2222}'
+api-cli run module/borgbackupserver1/configure-module --data '{"fqdn":"bbs.example.org","lets_encrypt":true,"ssh_port":2222,"admin_password":"<initial password>"}'
 ```
+
+Omit `admin_password` in later calls.
 
 The module configuration is authoritative. It sets BBS `APP_URL` and `server_host`, and passes the chosen SSH port both to the container's host-port mapping and BBS `SSH_PORT` setting. BBS receives the same SSH port advertised to agents. Restart existing agents after changing the port. A hostname change also requires updating the saved server URL in existing agent configurations; the server cannot rewrite those local client files.
 
 With Let's Encrypt disabled, Traefik uses the node's default certificate. BBS agents verify HTTPS certificates, so unattended agents must trust that certificate; a publicly trusted certificate is recommended when clients cannot be configured with the node's certificate.
-
-If you leave the initial password field empty, BBS generates an administrator password on first startup and prints it to the container log. To read the log, run `runagent -m borgbackupserver1 podman logs bbs`.
 
 ## Data and backup
 

@@ -11,3 +11,5 @@ environment = request.get("environment", {})
 for name in ("BBS_FQDN", "BBS_LETS_ENCRYPT", "BBS_SSH_PORT"):
     if name in environment:
         agent.set_env(name, str(environment[name]))
+# The restored database already holds the administrator password.
+agent.set_env("BBS_ADMIN_PASSWORD_SET", "1")

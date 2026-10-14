@@ -22,6 +22,7 @@
             "maximum": 65535
         },
         "admin_password": {
+            "description": "Initial BBS admin password; required until it is set, then rejected",
             "type": "string",
             "maxLength": 72
         }
