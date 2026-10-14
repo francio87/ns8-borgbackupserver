@@ -71,7 +71,7 @@ if admin_password:
         )
     if (
         not isinstance(admin_password, str)
-        or not 8 <= len(admin_password) <= 128
+        or not 8 <= len(admin_password.encode("utf-8")) <= 72
         or any(char in admin_password for char in "\r\n\x00")
     ):
         validation_error("admin_password", "invalid_admin_password", None)
