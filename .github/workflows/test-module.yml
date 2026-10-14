@@ -12,6 +12,8 @@ on:
   workflow_run:
     workflows: ["Publish images"]
     types: [completed]
+    # Test only what lands on main; run it by hand for other branches.
+    branches: [main]
 
 jobs:
   run:
