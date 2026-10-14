@@ -17,6 +17,12 @@ Login to cluster-admin
     Click    button >> text="Log in"
     Wait For Elements State    css=#main-content    visible    timeout=10s
 
+BBS web interface should respond
+    [Arguments]    ${host}
+    ${rc} =    Execute Command    curl -kfsSL --resolve ${host}:443:127.0.0.1 https://${host}/
+    ...    return_rc=True  return_stdout=False
+    Should Be Equal As Integers    ${rc}  0
+
 *** Test Cases ***
 Check if Borg Backup Server is installed correctly
     ${output}  ${rc} =    Execute Command    add-module ${IMAGE_URL} 1
@@ -48,7 +54,9 @@ Check if the first configuration requires the admin password
     Should Contain    ${output}    admin_password_required
 
 Check if an occupied SSH port is rejected
-    ${output}  ${rc} =    Execute Command    api-cli run module/${module_id}/configure-module --data '{"fqdn":"bbs.example.test","lets_encrypt":false,"ssh_port":443,"admin_password":"${BBS_ADMIN_PASSWORD}"}'
+    # The web port allocated to the module is always taken
+    ${web_port} =    Execute Command    runagent -m ${module_id} printenv TCP_PORT
+    ${output}  ${rc} =    Execute Command    api-cli run module/${module_id}/configure-module --data '{"fqdn":"bbs.example.test","lets_encrypt":false,"ssh_port":${web_port},"admin_password":"${BBS_ADMIN_PASSWORD}"}'
     ...    return_rc=True
     Should Not Be Equal As Integers    ${rc}  0
     Should Contain    ${output}    port_in_use
@@ -79,9 +87,9 @@ Check if the configuration can be saved without the admin password
     Should Be Equal As Integers    ${rc}  0
 
 Check if the BBS web interface is reachable
-    ${rc} =    Execute Command    curl -kfsSL --resolve bbs.example.test:443:127.0.0.1 https://bbs.example.test/
-    ...    return_rc=True  return_stdout=False
-    Should Be Equal As Integers    ${rc}  0
+    # The service restarts at the end of configure-module
+    Wait Until Keyword Succeeds    60s    5s
+    ...    BBS web interface should respond    bbs.example.test
 
 Check if an update recreates the BBS container
     ${before} =    Execute Command    runagent -m ${module_id} podman inspect bbs --format '{{.Id}}'
