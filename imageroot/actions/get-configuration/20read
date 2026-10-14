@@ -14,6 +14,7 @@ config = {
     "lets_encrypt": os.environ.get("BBS_LETS_ENCRYPT", "false").lower() == "true",
     "ssh_port": int(os.environ.get("BBS_SSH_PORT", "2222") or 2222),
     "admin_password_initialized": os.environ.get("BBS_ADMIN_PASSWORD_SET") == "1",
+    "clone_pending": os.environ.get("BBS_CLONE_PENDING") == "1",
 }
 
 json.dump(config, fp=sys.stdout)

@@ -63,7 +63,10 @@
         "show_password": "Show password",
         "hide_password": "Hide password",
         "invalid_admin_password": "Use 8 to 72 characters on one line. Accented letters, symbols and emoji count as 2 to 4 characters.",
-        "admin_password_already_initialized": "The BBS administrator password is already set. Use Advanced options to change it."
+        "admin_password_already_initialized": "The BBS administrator password is already set. Use Advanced options to change it.",
+        "clone_pending_title": "This copy is not running yet",
+        "clone_pending_description": "This instance was cloned from another one, which still uses the same hostname and SSH port. Enter a new hostname (FQDN) and an unused SSH port, then save to start it.",
+        "fqdn_used_by_clone_source": "The original instance already uses this hostname. Enter a different one."
     },
     "about": {
         "title": "About"

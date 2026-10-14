@@ -5,6 +5,7 @@ Library    SSHLibrary
 ${ADMIN_USER}    admin
 ${ADMIN_PASSWORD}    Nethesis,1234
 ${module_id}    ${EMPTY}
+${clone_id}    ${EMPTY}
 # Characters that would break shell, env-file or SQL quoting
 ${BBS_ADMIN_PASSWORD}    Dfd90s%4&&%$&%$&àòàòà
 
@@ -90,6 +91,42 @@ Check if the BBS web interface is reachable
     # The service restarts at the end of configure-module
     Wait Until Keyword Succeeds    60s    5s
     ...    BBS web interface should respond    bbs.example.test
+
+Check if a clone does not start until it is configured
+    ${output}  ${rc} =    Execute Command    api-cli run clone-module --data '{"module":"${module_id}","node":1,"replace":false}'
+    ...    return_rc=True
+    Should Be Equal As Integers    ${rc}  0
+    &{output} =    Evaluate    ${output}
+    Set Global Variable    ${clone_id}    ${output.module_id}
+    ${rc} =    Execute Command    runagent -m ${clone_id} systemctl --user is-active borgbackupserver.service
+    ...    return_rc=True  return_stdout=False
+    Should Not Be Equal As Integers    ${rc}  0
+    ${output} =    Execute Command    api-cli run module/${clone_id}/get-configuration
+    Should Contain    ${output}    "clone_pending": true
+
+Check if a clone rejects the FQDN and SSH port of its source
+    ${output}  ${rc} =    Execute Command    api-cli run module/${clone_id}/configure-module --data '{"fqdn":"bbs.example.test","lets_encrypt":false,"ssh_port":2223}'
+    ...    return_rc=True
+    Should Not Be Equal As Integers    ${rc}  0
+    Should Contain    ${output}    fqdn_used_by_clone_source
+    ${output}  ${rc} =    Execute Command    api-cli run module/${clone_id}/configure-module --data '{"fqdn":"bbs2.example.test","lets_encrypt":false,"ssh_port":2222}'
+    ...    return_rc=True
+    Should Not Be Equal As Integers    ${rc}  0
+    Should Contain    ${output}    port_in_use
+
+Check if a configured clone starts
+    ${rc} =    Execute Command    api-cli run module/${clone_id}/configure-module --data '{"fqdn":"bbs2.example.test","lets_encrypt":false,"ssh_port":2223}'
+    ...    return_rc=True  return_stdout=False
+    Should Be Equal As Integers    ${rc}  0
+    Wait Until Keyword Succeeds    60s    5s
+    ...    BBS web interface should respond    bbs2.example.test
+    ${output} =    Execute Command    api-cli run module/${clone_id}/get-configuration
+    Should Contain    ${output}    "clone_pending": false
+
+Check if the clone is removed correctly
+    ${rc} =    Execute Command    remove-module --no-preserve ${clone_id}
+    ...    return_rc=True  return_stdout=False
+    Should Be Equal As Integers    ${rc}  0
 
 Check if an update recreates the BBS container
     ${before} =    Execute Command    runagent -m ${module_id} podman inspect bbs --format '{{.Id}}'

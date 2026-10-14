@@ -4,11 +4,15 @@
     "$id": "http://schema.nethserver.org/borgbackupserver/get-configuration-output.json",
     "description": "Borg Backup Server configuration",
     "type": "object",
-    "required": ["fqdn", "lets_encrypt", "ssh_port", "admin_password_initialized"],
+    "required": ["fqdn", "lets_encrypt", "ssh_port", "admin_password_initialized", "clone_pending"],
     "properties": {
         "fqdn": {"type": "string"},
         "lets_encrypt": {"type": "boolean"},
         "ssh_port": {"type": "integer", "minimum": 1024, "maximum": 65535},
-        "admin_password_initialized": {"type": "boolean"}
+        "admin_password_initialized": {"type": "boolean"},
+        "clone_pending": {
+            "type": "boolean",
+            "description": "True for a copy made by clone-module that is not configured yet"
+        }
     }
 }
