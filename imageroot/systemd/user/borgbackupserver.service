@@ -10,6 +10,8 @@ Environment=PODMAN_SYSTEMD_UNIT=%n
 EnvironmentFile=%E/state/environment
 WorkingDirectory=%E/state
 Restart=always
+# configure-bbs-settings waits up to 180s for MariaDB on first start
+TimeoutStartSec=300
 ExecStartPre=/bin/rm -f %t/bbs.pid %t/bbs.ctr-id
 ExecStartPre=/usr/bin/touch %S/state/passwords.env
 ExecStartPre=/usr/bin/chmod 600 %S/state/passwords.env
