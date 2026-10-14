@@ -108,6 +108,11 @@ The NS8 backup includes:
 
 Because the volume contains client Borg repositories, NS8 backups can be large and may duplicate data already protected elsewhere. Size the backup destination and retention accordingly.
 
+## 🧬 Clone and move
+
+- **Move** to another node: the instance keeps its hostname and SSH port, and starts on the new node. Update the DNS record and any router/NAT forwarding to point to the new node.
+- **Clone**: the copy does not start, because the original instance still uses the same hostname and SSH port. Open the copy's Settings page, enter a new hostname and an unused SSH port, then save to start it. The copy contains the same database as the original, including registered agents, repositories and users.
+
 ## ⚠️ Limitations
 
 - Do not use the BBS in-app server updater: it modifies the container outside the pinned image and can apply irreversible database migrations. Update BBS by updating the module.

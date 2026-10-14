@@ -19,10 +19,20 @@
         />
       </cv-column>
     </cv-row>
+    <cv-row v-if="clonePending">
+      <cv-column>
+        <NsInlineNotification
+          kind="warning"
+          :title="$t('settings.clone_pending_title')"
+          :description="$t('settings.clone_pending_description')"
+          :showCloseButton="false"
+        />
+      </cv-column>
+    </cv-row>
     <cv-row>
       <cv-column>
         <NsTile light>
-          <cv-row v-if="fqdn">
+          <cv-row v-if="fqdn && !clonePending">
             <cv-column>
               <p>
                 {{ $t("settings.access_url") }}
@@ -276,6 +286,7 @@ export default {
       adminPassword: "",
       adminPasswordConfirmation: "",
       adminPasswordInitialized: false,
+      clonePending: false,
       resetTwoFactor: false,
       confirmAdminSecurityChangesVisible: false,
       pendingAdminPasswordReset: false,
@@ -367,6 +378,7 @@ export default {
       this.letsEncrypt = config.lets_encrypt;
       this.sshPort = String(config.ssh_port || 2222);
       this.adminPasswordInitialized = config.admin_password_initialized === true;
+      this.clonePending = config.clone_pending === true;
       this.adminPassword = "";
       this.adminPasswordConfirmation = "";
       this.focusElement("fqdn");

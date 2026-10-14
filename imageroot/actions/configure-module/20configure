@@ -46,6 +46,11 @@ elif not password_set:
     # container environment, the module state or the logs.
     validation_error("admin_password", "admin_password_required", None)
 
+# A copy made by clone-module must not reuse the FQDN of its source.
+clone_pending = os.environ.get("BBS_CLONE_PENDING") == "1"
+if clone_pending and fqdn == os.environ.get("BBS_FQDN", "").lower():
+    validation_error("fqdn", "fqdn_used_by_clone_source", fqdn)
+
 # The NS8 checker sees listening sockets. Check the allocated web port
 # explicitly too, because it may not be listening until the service starts.
 port_is_ours = False
@@ -88,4 +93,6 @@ agent.mset_env(
         "BBS_SSH_PORT": str(ssh_port),
     }
 )
+if clone_pending:
+    agent.unset_env("BBS_CLONE_PENDING")
 json.dump({}, fp=sys.stdout)
