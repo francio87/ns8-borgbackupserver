@@ -13,19 +13,31 @@ The module runs the upstream BBS image as a single rootless Podman container. BB
 
 ## Install
 
+### From the Software Center (recommended)
+
 Add the module repository, then install **Borg Backup Server** from the Software Center:
 
 ```bash
 api-cli run add-repository --data '{"name":"francio87","url":"https://francio87.github.io/ns8-repomd/","status":true}'
 ```
 
-The catalog refreshes every six hours. Alternatively, instantiate the module image directly:
+The catalog refreshes every six hours. Updates are offered by the Software Center.
+
+### From the image, without adding the repository
+
+Pick a version from the [releases page](https://github.com/francio87/ns8-borgbackupserver/releases) and instantiate it on node `1`:
 
 ```bash
-add-module ghcr.io/francio87/borgbackupserver:latest 1
+add-module ghcr.io/francio87/borgbackupserver:<version> 1
 ```
 
-The command returns the module ID, for example `borgbackupserver1`.
+The command returns the module ID, for example `borgbackupserver1`. Without the repository, the Software Center does not offer updates: update the instance manually with the image of a newer version:
+
+```bash
+api-cli run update-module --data '{"module_url":"ghcr.io/francio87/borgbackupserver:<version>","instances":["borgbackupserver1"]}'
+```
+
+The `latest` tag follows the `main` branch and is meant for development only.
 
 ## Configure
 
