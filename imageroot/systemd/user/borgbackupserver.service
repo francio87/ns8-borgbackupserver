@@ -7,8 +7,8 @@ After=network-online.target
 
 [Service]
 Environment=PODMAN_SYSTEMD_UNIT=%n
-EnvironmentFile=%E/state/environment
-WorkingDirectory=%E/state
+EnvironmentFile=%S/state/environment
+WorkingDirectory=%S/state
 Restart=always
 # configure-bbs-settings waits up to 180s for MariaDB on first start
 TimeoutStartSec=300
