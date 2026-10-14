@@ -52,7 +52,7 @@ Configure the module from its Settings page, or run `configure-module` with thes
 - `fqdn` (required): host name of the BBS web interface
 - `lets_encrypt` (required): request a Let's Encrypt certificate through Traefik
 - `ssh_port` (required): external Borg SSH port, from `1024` to `65535` (default `2222`)
-- `admin_password` (optional): initial BBS `admin` password, used only before BBS initializes
+- `admin_password` (required on the first configuration only): initial BBS `admin` password; rejected afterwards
 
 Example:
 
@@ -61,10 +61,13 @@ api-cli run module/borgbackupserver1/configure-module --data - <<EOF
 {
   "fqdn": "bbs.example.org",
   "lets_encrypt": true,
-  "ssh_port": 2222
+  "ssh_port": 2222,
+  "admin_password": "<initial password>"
 }
 EOF
 ```
+
+Omit `admin_password` in later calls.
 
 Notes:
 
@@ -72,7 +75,7 @@ Notes:
 - Before applying a new SSH port, the module checks that it is not already listening on the node or conflicting with the web backend port.
 - After changing the SSH port, restart existing agents. After changing the FQDN, also update the server URL saved in each agent configuration.
 - Without Let's Encrypt, Traefik uses the node's default certificate. BBS agents verify HTTPS certificates, so they must trust it; a publicly trusted certificate is recommended.
-- If `admin_password` is empty, BBS generates one on first startup and prints it to the container log. The initial password is never returned by `get-configuration` and is removed from module state after initialization.
+- The first configuration waits for BBS to initialize its database, then sets the `admin` password hash directly in the database through standard input, like a password reset. The password is never written to the module state, the container environment, or the logs, and BBS never generates its own initial password. If the first configuration fails before the password is set, run it again with the password.
 
 ## 🔎 Get the configuration
 
