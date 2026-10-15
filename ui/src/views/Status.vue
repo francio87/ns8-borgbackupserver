@@ -51,7 +51,9 @@
         >
           <!-- keep a real node in the slot: NsInfoCard checks it only once and Vue drops comment-only slots -->
           <div slot="content" class="card-rows">
-            <template v-if="config.fqdn && !config.clone_pending">
+            <template
+              v-if="config.fqdn && !config.clone_pending && !loading.getStatus"
+            >
               <div class="card-row">
                 <cv-link :href="'https://' + config.fqdn" target="_blank">
                   {{ config.fqdn }}
