@@ -49,8 +49,9 @@
           :loading="loading.getStatus"
           class="min-height-card"
         >
-          <template v-if="config.fqdn && !config.clone_pending" slot="content">
-            <div class="card-rows">
+          <!-- always pass the slot: NsInfoCard does not react to slots added later -->
+          <template slot="content">
+            <div v-if="config.fqdn && !config.clone_pending" class="card-rows">
               <div class="card-row">
                 <cv-link :href="'https://' + config.fqdn" target="_blank">
                   {{ config.fqdn }}
