@@ -48,7 +48,20 @@
           :icon="Application32"
           :loading="loading.getStatus"
           class="min-height-card"
-        />
+        >
+          <template v-if="config.fqdn && !config.clone_pending" slot="content">
+            <div class="card-rows">
+              <div class="card-row">
+                <cv-link :href="'https://' + config.fqdn" target="_blank">
+                  {{ config.fqdn }}
+                </cv-link>
+              </div>
+              <div class="card-row">
+                {{ $t("settings.ssh_port") }}: {{ config.ssh_port }}
+              </div>
+            </div>
+          </template>
+        </NsInfoCard>
       </cv-column>
       <cv-column :md="4" :max="4">
         <NsInfoCard
@@ -291,6 +304,7 @@ export default {
         images: [],
         volumes: [],
       },
+      config: {},
       backupRepositories: [],
       backups: [],
       loading: {
@@ -347,6 +361,7 @@ export default {
   },
   created() {
     this.getStatus();
+    this.getConfiguration();
     this.listBackupRepositories();
   },
   methods: {
@@ -395,6 +410,33 @@ export default {
     getStatusCompleted(taskContext, taskResult) {
       this.status = taskResult.output;
       this.loading.getStatus = false;
+    },
+    async getConfiguration() {
+      const taskAction = "get-configuration";
+      const eventId = this.getUuid();
+
+      // register to task completion
+      this.core.$root.$once(
+        `${taskAction}-completed-${eventId}`,
+        this.getConfigurationCompleted
+      );
+
+      const res = await to(
+        this.createModuleTaskForApp(this.instanceName, {
+          action: taskAction,
+          extra: {
+            title: this.$t("action." + taskAction),
+            isNotificationHidden: true,
+            eventId,
+          },
+        })
+      );
+      if (res[0]) {
+        console.error(`error creating task ${taskAction}`, res[0]);
+      }
+    },
+    getConfigurationCompleted(taskContext, taskResult) {
+      this.config = taskResult.output;
     },
     async listBackupRepositories() {
       this.loading.listBackupRepositories = true;
@@ -511,6 +553,16 @@ export default {
 
 <style scoped lang="scss">
 @import "../styles/carbon-utils";
+
+.card-rows {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.card-row {
+  margin-bottom: $spacing-03;
+}
 
 .break-word {
   word-wrap: break-word;
