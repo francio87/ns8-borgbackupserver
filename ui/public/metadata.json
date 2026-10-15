@@ -6,11 +6,12 @@
   "categories": ["storage"],
   "authors": [
     {
-      "name": "Borg Backup Server NS8 module contributors"
+      "name": "Davide Franceschelli",
+      "email": "davide@franceschelli.eu"
     }
   ],
   "docs": {
-    "documentation_url": "https://github.com/marcpope/borgbackupserver/wiki/Docker-Installation",
+    "documentation_url": "https://github.com/marcpope/borgbackupserver/wiki",
     "bug_url": "https://github.com/francio87/ns8-borgbackupserver/issues",
     "code_url": "https://github.com/francio87/ns8-borgbackupserver"
   },
