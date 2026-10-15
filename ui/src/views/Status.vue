@@ -49,9 +49,9 @@
           :loading="loading.getStatus"
           class="min-height-card"
         >
-          <!-- always pass the slot: NsInfoCard does not react to slots added later -->
-          <template slot="content">
-            <div v-if="config.fqdn && !config.clone_pending" class="card-rows">
+          <!-- keep a real node in the slot: NsInfoCard checks it only once and Vue drops comment-only slots -->
+          <div slot="content" class="card-rows">
+            <template v-if="config.fqdn && !config.clone_pending">
               <div class="card-row">
                 <cv-link :href="'https://' + config.fqdn" target="_blank">
                   {{ config.fqdn }}
@@ -60,8 +60,8 @@
               <div class="card-row">
                 {{ $t("settings.ssh_port") }}: {{ config.ssh_port }}
               </div>
-            </div>
-          </template>
+            </template>
+          </div>
         </NsInfoCard>
       </cv-column>
       <cv-column :md="4" :max="4">
