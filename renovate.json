@@ -7,7 +7,8 @@
       "allowedVersions": "/^v/",
       "automerge": false,
       "minimumReleaseAge": "2 days",
-      "rebaseWhen": "auto"
+      "rebaseWhen": "auto",
+      "separateMinorPatch": false
     }
   ]
 }
