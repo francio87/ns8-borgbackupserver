@@ -10,9 +10,9 @@ Publish testing releases as GitHub **pre-releases**, so the NS8 workflows classi
 Use the official release tool with our repository explicitly selected:
 
 ```bash
-gh extension install NethServer/gh-ns8-release-module
-gh ns8-release-module create --repo francio87/ns8-borgbackupserver --testing --release-name 0.2.2-testing.1
-gh ns8-release-module create --repo francio87/ns8-borgbackupserver --release-name 0.2.2
+gh extension install NethServer/gh-ns8
+gh ns8 module-release create --repo francio87/ns8-borgbackupserver --testing 0.2.2-testing.1
+gh ns8 module-release create --repo francio87/ns8-borgbackupserver 0.2.2
 ```
 
 Without `--release-refs`, GitHub uses the repository's default branch (`main`).
@@ -22,11 +22,11 @@ branch, commit the changes, and push them before creating the release:
 ```bash
 git switch my-testing-branch
 git push origin my-testing-branch
-gh ns8-release-module create \
+gh ns8 module-release create \
   --repo francio87/ns8-borgbackupserver \
   --testing \
-  --release-name 0.2.2-testing.1 \
-  --release-refs "$(git rev-parse HEAD)"
+  --release-refs "$(git rev-parse HEAD)" \
+  0.2.2-testing.1
 ```
 
 Replace the branch and version with your own. `--release-refs` selects the committed
@@ -56,7 +56,7 @@ checks that the newest stable GHCR image has a published stable GitHub release a
 is present in the public catalog. It deletes GHCR versions containing only
 `X.Y.Z-testing.N` tags whose base version is at most that stable version. Digests
 sharing a stable or any other tag are preserved. The official
-`gh ns8-release-module clean` command removes GitHub pre-releases created between
+`gh ns8 module-release clean` command removes GitHub pre-releases created between
 the previous and selected stable release. **Git tags and stable images are retained.**
 Cleanup stops if that date window contains a newer or unrecognized pre-release.
 Testing images newer than stable are retained; only the latest is advertised.
