@@ -10,6 +10,17 @@ if [[ ! -s "$backup" ]]; then
 fi
 
 systemctl --user start borgbackupserver.service
+# The entrypoint imports the BBS schema after MariaDB is up: importing the dump concurrently deadlocks
+ready=""
+for _ in $(seq 300); do
+    # no grep -q: an early exit would SIGPIPE podman and fail the pipeline under pipefail
+    podman logs bbs 2>&1 | grep -F '=== BBS Container Ready ===' >/dev/null && ready=1 && break
+    sleep 1
+done
+if [[ -z "$ready" ]]; then
+    echo "BBS did not become ready; cannot restore its database" >&2
+    exit 1
+fi
 tar -tzf "$backup" | grep -E '(^|/)dump\.sql$' >/dev/null
 tar -xOzf "$backup" ./dump.sql | podman exec -i bbs mysql bbs
 rm -f "$backup"
