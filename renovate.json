@@ -6,7 +6,7 @@
       "matchPackageNames": ["marcpope/borgbackupserver"],
       "allowedVersions": "/^v/",
       "automerge": false,
-      "minimumReleaseAge": "2 days",
+      "minimumReleaseAge": "1 day",
       "rebaseWhen": "auto",
       "separateMinorPatch": false
     }
