@@ -5,6 +5,8 @@ import re
 import subprocess
 import sys
 import time
+import urllib.error
+import urllib.request
 
 
 fqdn = os.environ.get("BBS_FQDN", "")
@@ -15,24 +17,26 @@ if not re.fullmatch(
     print("BBS_FQDN is missing or invalid", file=sys.stderr)
     sys.exit(1)
 
+# Apache starts as the entrypoint's last step, so an HTTP answer means BBS finished bootstrapping
+url = f"http://127.0.0.1:{os.environ['TCP_PORT']}/"
+for _ in range(280):
+    try:
+        urllib.request.urlopen(url, timeout=5)
+        break
+    except urllib.error.HTTPError:
+        break
+    except OSError:
+        time.sleep(1)
+else:
+    print("BBS did not become ready; cannot apply BBS server hostname", file=sys.stderr)
+    sys.exit(1)
+
 sql = (
     "INSERT INTO settings (`key`,`value`) "
     f"VALUES ('server_host','{fqdn}') "
     f"ON DUPLICATE KEY UPDATE `value`='{fqdn}'"
 )
-for _ in range(180):
-    result = subprocess.run(
-        ["podman", "exec", "bbs", "mysql", "bbs", "-N", "-e", sql],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        check=False,
-    )
-    if result.returncode == 0:
-        break
-    time.sleep(1)
-else:
-    print("MariaDB did not become ready; cannot apply BBS server hostname", file=sys.stderr)
-    sys.exit(1)
+subprocess.run(["podman", "exec", "bbs", "mysql", "bbs", "-N", "-e", sql], check=True)
 
 subprocess.run(
     [
