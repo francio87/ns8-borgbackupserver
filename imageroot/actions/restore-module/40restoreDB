@@ -9,7 +9,13 @@ if [[ ! -s "$backup" ]]; then
     exit 1
 fi
 
+# Returns once BBS serves HTTP: the entrypoint has finished its first-run schema import
 systemctl --user start borgbackupserver.service
 tar -tzf "$backup" | grep -E '(^|/)dump\.sql$' >/dev/null
+# Same steps as upstream bin/bbs-restore: clean database, then drop state that is stale on a restored copy
+podman exec bbs mysql -e "DROP DATABASE IF EXISTS bbs; CREATE DATABASE bbs CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
 tar -xOzf "$backup" ./dump.sql | podman exec -i bbs mysql bbs
+podman exec bbs mysql bbs -e "DELETE FROM backup_jobs WHERE status IN ('queued', 'sent', 'running');
+    DELETE FROM settings WHERE \`key\` IN ('push_install_id', 'push_server_id', 'push_serverkey', 'push_relay_fail_count', 'push_relay_cooldown_until');
+    DELETE FROM push_queue"
 rm -f "$backup"
