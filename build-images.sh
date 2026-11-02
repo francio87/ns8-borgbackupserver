@@ -14,7 +14,7 @@ images=()
 repobase="${REPOBASE:-ghcr.io/nethserver}"
 # Configure the image name
 reponame="borgbackupserver"
-bbsimage="docker.io/marcpope/borgbackupserver:v2.99.7"
+bbsimage="docker.io/marcpope/borgbackupserver:v2.101.0"
 
 # Create a new empty container image
 container=$(buildah from scratch)
